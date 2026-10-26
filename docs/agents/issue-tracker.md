@@ -4,7 +4,9 @@
 
 本仓库是 git 仓库，远端是 GitHub（`FishInJava/ai-qq`），**但 tracker 仍在本地**：`to-spec`、`to-tickets`、`implement-spec` 一律读写本地 markdown，不要改去连 GitHub Issues / Linear。理由只有一条：票是写给**下一个 agent 会话**的上下文包，要能被 `read`/`grep` 直接读、能跟分支一起走、能在离线时用；GitHub Issues 要走 `gh api`，多一层 token 与网络依赖。
 
-**bug 不进 tracker。** 期望行为已经在 spec / PRD / 原型 / 用例里写定、只是实现没跟上的，走 `/fix-bug`（`.dsh/skills/fix-bug/SKILL.md`）：不建票文件、不勾验收项、不写 `## Notes`，记录落在 commit message 与 PR body。判定门槛见 `Workflow.md` §0。
+**bug 不进 tracker。** 入口是命令，不是判断：用户输入 `/fix-bug` → 走 `.dsh/skills/fix-bug/SKILL.md`，不建票文件、不勾验收项、不写 `## Notes`，记录落在 commit message 与 PR body；没输入就照常走票。见 `Workflow.md` §0。
+
+**命令有两个入口**：dsh 侧 `.dsh/skills/fix-bug/SKILL.md`（技能即 `/fix-bug`），opencode 侧 `.opencode/commands/fix-bug.md`（斜杠命令）。两边都指向同一套流程，改哪边都要同步另一边。
 
 ## Layout
 
