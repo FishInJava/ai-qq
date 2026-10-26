@@ -148,5 +148,10 @@ test('主动消息带 role、两卡不串台、多气泡同属一次生成', asy
     const page = await (await fetch(`${app.baseUrl}/app.js`)).text();
     assert.match(page, /function groupMessages/);
     assert.match(page, /msg--group/);
+
+    // 多条气泡必须纵向排列：.msg 是 flex 行容器，缺了 .msg__bubbles 的
+    // flex-direction:column，一次回复的多条气泡就会挤在同一行（回归 bug）。
+    const css = await (await fetch(`${app.baseUrl}/styles.css`)).text();
+    assert.match(css, /\.msg__bubbles\s*\{[^}]*flex-direction:\s*column/s);
   });
 });

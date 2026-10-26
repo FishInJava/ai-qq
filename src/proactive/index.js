@@ -723,6 +723,8 @@ export function createProactive({ store, clock, config, llm, style, quota, bus, 
           bubble_index: index,
           incomplete: 0,
           created_at: result.createdAt,
+          clock_text: clock.localClockText(result.createdAt),
+          local_day: clock.localDayOfIso(result.createdAt),
         },
       });
     }

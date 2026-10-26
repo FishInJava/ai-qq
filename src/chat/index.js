@@ -304,9 +304,17 @@ export function createChat({
       bubble_index: null,
       incomplete: 0,
       created_at: createdAt,
+      clock_text: clock.localClockText(createdAt),
+      local_day: clock.localDayOfIso(createdAt),
     };
     bus.emit('message', { session_id: session.id, message: userMessage });
-    yield { type: 'user_ack', message_id: userMessageId };
+    yield {
+      type: 'user_ack',
+      message_id: userMessageId,
+      created_at: createdAt,
+      clock_text: clock.localClockText(createdAt),
+      local_day: clock.localDayOfIso(createdAt),
+    };
 
     const context = buildContext(session.id, 'chat');
     let generated = await collectStream(context.messages, config.llm.chat_timeout_ms);
@@ -410,6 +418,8 @@ export function createChat({
           bubble_index: item.bubble_index,
           incomplete: 0,
           created_at: item.created_at,
+          clock_text: clock.localClockText(item.created_at),
+          local_day: clock.localDayOfIso(item.created_at),
         },
       });
     }
@@ -431,6 +441,9 @@ export function createChat({
         bubble_index: item.bubble_index,
         text: item.text,
         incomplete: false,
+        created_at: item.created_at,
+        clock_text: clock.localClockText(item.created_at),
+        local_day: clock.localDayOfIso(item.created_at),
       };
     }
 

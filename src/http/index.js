@@ -183,6 +183,8 @@ export function createHttp({
           version,
           uptime_ms: Math.max(0, clock.now() - startedAt),
           port: actualPort,
+          today: clock.localDay(),
+          yesterday: clock.localDay(clock.startOfLocalDay(clock.localDay()) - 1),
         });
         return;
       }

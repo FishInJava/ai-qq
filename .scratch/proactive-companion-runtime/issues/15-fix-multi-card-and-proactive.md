@@ -10,6 +10,7 @@
 - [x] 真实端点（OpenAI 兼容）`tick` 返回 `decision: send`，消息落库 `is_proactive=1` 且锚定生活事件
 - [x] 多卡：发送中状态按 `session_id` 记录，切到另一张卡时输入框立即可用
 - [x] 一次回复的多条气泡按 `bubble_index` 连续递增合并为一个消息块（`msg--group`）
+- [x] 同组气泡在 CSS 上纵向排列（`.msg__bubbles{flex-direction:column}`），不再挤在一行；S1 静态资源回归断言保护
 - [x] 聊天流式失败写 `chat_failed` 日志（会话、code、message），不再无声消失
 - [x] 回归用例证明：修复前 `messages[0]` 缺 role；修复后人设在场
 - [x] `npm run check` 无输出；`npm run smoke` 退出码 0
@@ -32,3 +33,18 @@
 **偏差**：无。
 
 **遗留**：`npm test` 在 4 并发下偶发 `应用没有在 3000ms 内启动`（单进程实测启动 780–920ms，属既有 flaky，去掉本票新增用例后同样复现 5/105）。单独跑对应文件必绿。这是测试夹具的启动超时问题，与本票改动无关，需要单独一张票处理。
+
+---
+
+## 追加修复：多条气泡显示在一行（用户报障）
+
+**根因**：分组只改了 `web/app.js` 的 DOM（多条 `.msg__bubble` 直接塞进同一个 `<li class="msg">`），没写对应 CSS。票 16 把 `.msg` 改成 `display:flex; flex-direction:column`，但同组气泡是 `<li>` 的直接子元素、且没有独立包裹容器，分组场景下横向排列（合并前的旧 `.msg` 是默认 row）——一次回复的多条气泡挤在一行。
+
+**落地**：
+- `web/styles.css`：新增 `.msg__bubbles{display:flex;flex-direction:column;gap:4px}`（user 侧 `align-items:flex-end`），对齐原型 `.bubbles`。
+- `web/app.js`：渲染结构改为 `li.msg.msg--group > .msg__meta + .msg__bubbles > .msg__bubble*`；与票 16 合并后保留时间 meta 与日期分隔行（`dayLabelOf`），组内多气泡只显示一个时间；SSE `user_ack`/`bubble` 帧补存 `clock_text`/`local_day`。
+- `src/chat/index.js`、`src/proactive/index.js`：全局 `message` SSE 事件补齐 `clock_text`/`local_day`（合并后与票 16 契约一致）。
+- `test/s1/t15`：追加静态资源回归断言（`.msg__bubble` 容器必须 `flex-direction:column`），拿掉该规则时用例如期变红。
+
+**验证**：`npm run check` 无输出；`npm test` 108/108 绿；`npm run smoke` 退出码 0。
+**偏差**：无。

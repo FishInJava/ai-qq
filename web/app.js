@@ -15,6 +15,9 @@ const state = {
     busy: false,
   },
   lastExportUrl: null,
+  // 本地日只由服务端给（/health），页面不自己算时间。
+  today: null,
+  yesterday: null,
   messages: new Map(),
   historyLoaded: new Set(),
   usage: new Map(),
@@ -37,7 +40,6 @@ const els = {
   noResults: $('noResults'),
   clearSearch: $('clearSearch'),
   search: $('search'),
-  importOpen: $('importOpen'),
   importZone: $('importZone'),
   stageEmpty: $('stageEmpty'),
   emptyTitle: $('emptyTitle'),
@@ -298,9 +300,34 @@ function currentCard() {
   return state.cards.find((item) => item.id === state.selectedId) ?? null;
 }
 
-function messageHtml(message) {
-  const mine = message.role === 'user';
-  return `<li class="msg ${mine ? 'msg--user' : 'msg--char'}"><div class="msg__bubble">${esc(message.content)}</div></li>`;
+/**
+ * 时间全部由服务端算好：clock 是唯一时间源，页面不许碰时间（硬规则 1）。
+ * `clock_text` 是本地 HH:mm，`local_day` 是本地 YYYY-MM-DD。
+ * 这里只拼「今天/昨天」的措辞与日期分隔行，不做任何日期运算。
+ */
+function dayLabelOf(localDay) {
+  if (!localDay) {
+    return '';
+  }
+  const parts = localDay.split('-');
+  const label = `${Number(parts[1])}月${Number(parts[2])}日`;
+  if (state.today === localDay) {
+    return `今天 · ${label}`;
+  }
+  if (state.yesterday === localDay) {
+    return `昨天 · ${label}`;
+  }
+  return label;
+}
+
+function metaHtml(group) {
+  const first = group.bubbles[0];
+  const clock = first?.clock_text ?? '';
+  if (!clock) {
+    return '';
+  }
+  const who = group.role === 'user' ? '你' : esc(currentCard()?.name ?? '');
+  return `<div class="msg__meta"><span>${who}</span><span aria-hidden="true">·</span><time>${esc(clock)}</time></div>`;
 }
 
 /**
@@ -334,12 +361,22 @@ function renderMessages() {
   const sessionId = card?.session_id;
   const list = sessionId ? state.messages.get(sessionId) ?? [] : [];
 
-  els.chatMessages.innerHTML = groupMessages(list).map((group) => {
+  // 先按 local_day 变化给每个组打上日期分隔行（票 16），
+  // 组内多气泡共用一个时间 meta（同一次生成共享 batchAt）。
+  const groups = groupMessages(list);
+  let lastDay = '';
+  els.chatMessages.innerHTML = groups.map((group) => {
     const mine = group.role === 'user';
+    const day = group.bubbles[0]?.local_day && group.bubbles[0].local_day !== lastDay
+      ? `<li class="day">${esc(dayLabelOf(group.bubbles[0].local_day))}</li>`
+      : '';
+    if (group.bubbles[0]?.local_day) {
+      lastDay = group.bubbles[0].local_day;
+    }
     const bubbles = group.bubbles
       .map((message) => `<div class="msg__bubble">${esc(message.content)}</div>`)
       .join('');
-    return `<li class="msg ${mine ? 'msg--user' : 'msg--char'} msg--group">${bubbles}</li>`;
+    return `${day}<li class="msg ${mine ? 'msg--user' : 'msg--char'} msg--group">${metaHtml(group)}<div class="msg__bubbles">${bubbles}</div></li>`;
   }).join('');
   els.chatMessages.hidden = list.length === 0;
   els.chatPlaceholder.hidden = list.length > 0;
@@ -467,7 +504,9 @@ async function consumeEvents(response, sessionId, pendingText) {
             is_proactive: 0,
             bubble_index: null,
             incomplete: 0,
-            created_at: '',
+            created_at: event.data?.created_at ?? '',
+            clock_text: event.data?.clock_text ?? null,
+            local_day: event.data?.local_day ?? null,
           });
           renderMessages();
         } else if (event.name === 'bubble') {
@@ -478,7 +517,9 @@ async function consumeEvents(response, sessionId, pendingText) {
             is_proactive: 0,
             bubble_index: event.data?.bubble_index ?? null,
             incomplete: event.data?.incomplete ? 1 : 0,
-            created_at: '',
+            created_at: event.data?.created_at ?? '',
+            clock_text: event.data?.clock_text ?? null,
+            local_day: event.data?.local_day ?? null,
           });
           renderMessages();
         } else if (event.name === 'done') {
@@ -1612,7 +1653,6 @@ document.addEventListener('dragend', () => {
   document.body.classList.remove('is-dragging');
 });
 
-els.importOpen.addEventListener('click', openImport);
 els.importZone.addEventListener('click', openImport);
 els.stageImport.addEventListener('click', openImport);
 els.importClose.addEventListener('click', closeImport);
@@ -1787,5 +1827,28 @@ window.addEventListener('focus', () => {
   void loadCards();
 });
 
+/**
+ * 本地日只在启动时问一次服务端：页面没有时钟，也不许自己算。
+ * 跨零点后措辞会旧，但页面每次聚焦都会重新 loadCards，
+ * 这里一并刷新即可，不做定时器（硬规则 1）。
+ */
+async function loadToday() {
+  try {
+    const response = await fetch('/health', { headers: { Accept: 'application/json' } });
+    const body = await response.json();
+    if (body?.today) {
+      state.today = body.today;
+      state.yesterday = body.yesterday ?? null;
+    }
+  } catch {
+    // 拿不到就退回只显示「M月D日」，不影响对话。
+  }
+}
+
+window.addEventListener('focus', () => {
+  void loadToday();
+});
+
 connectEvents();
+void loadToday();
 void loadCards();
