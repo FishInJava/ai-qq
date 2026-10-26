@@ -34,3 +34,11 @@ Thumbs.db
 
 # 本地 tracker 的临时笔记（票与 spec 要提交，notes 不强制）
 .scratch/**/notes/
+
+# 本地排障产物（含真实 api_key 的临时 DATA_DIR、复现脚本、调试输出）
+# 这些由人工/代理临时生成，绝不入库：.tmp-real 里的 config.json 有明文密钥。
+.tmp-*/
+.repro-*
+repro-*
+probe-*.mjs
+NUL
