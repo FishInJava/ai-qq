@@ -2,7 +2,9 @@
 
 **Where issues live:** local markdown files inside this repo, under `.scratch/`.
 
-本项目不是 git 仓库、没有远端 tracker，因此 `to-spec`、`to-tickets`、`implement-spec` 全部读写本地 markdown。任何 skill 在读票时先看这里，不要假设 GitHub / Linear 存在。
+本仓库是 git 仓库，远端是 GitHub（`FishInJava/ai-qq`），**但 tracker 仍在本地**：`to-spec`、`to-tickets`、`implement-spec` 一律读写本地 markdown，不要改去连 GitHub Issues / Linear。理由只有一条：票是写给**下一个 agent 会话**的上下文包，要能被 `read`/`grep` 直接读、能跟分支一起走、能在离线时用；GitHub Issues 要走 `gh api`，多一层 token 与网络依赖。
+
+**bug 不进 tracker。** 期望行为已经在 spec / PRD / 原型 / 用例里写定、只是实现没跟上的，走 `/fix-bug`（`.dsh/skills/fix-bug/SKILL.md`）：不建票文件、不勾验收项、不写 `## Notes`，记录落在 commit message 与 PR body。判定门槛见 `Workflow.md` §0。
 
 ## Layout
 
@@ -54,6 +56,10 @@
 2. `**Status:**` 改为 `done`；
 3. 在票末追加 `## Notes` 段落，写清实际落地了什么、和 spec 的偏差、遗留项。
 
+这三步只适用于**票**。走 `/fix-bug` 的 bug 没有票可关，也不许为了让流程"看起来完整"补一张。
+
 ## PRs as a request surface
 
-off（无远端仓库，不涉及外部 PR 进入队列）
+on（GitHub，`FishInJava/ai-qq`）。PR 是给人看的审阅面，票是给 agent 看的上下文包——同一件事的两份记录，各管一头：
+- 票 → 七段模板（`.github/pull_request_template.md`），带验收项勾选；
+- bug → 五段短版（`.dsh/skills/fix-bug/SKILL.md` §5），没有票就不填验收项。

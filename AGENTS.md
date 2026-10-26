@@ -6,7 +6,9 @@
 
 一个本地单机、常驻进程的桌面陪伴产品：把 SillyTavern V2 角色卡拖进来，她就活在一个会自己过日子的 Node 进程里，你不说话时她也按自己的节奏（有锚点、有预算、有三态）决定要不要找你。
 
-**当前状态**：PRD、封板决策、spec、可交互原型、项目架构均已定稿；**M0–M7 共 14 票全部 `done`**（票 01–14，见 [.scratch/proactive-companion-runtime/issues/](.scratch/proactive-companion-runtime/issues/)）。`src`/`web`/`test`/`tools` 已落地，`npm test` 105 条通过、`npm run check` 干净。架构见 [ARCHITECTURE.md](docs/ARCHITECTURE.md)，行为清单见 [spec.md](.scratch/proactive-companion-runtime/spec.md)。
+**当前状态**：PRD、封板决策、spec、可交互原型、项目架构均已定稿；**M0–M7 共 14 票全部 `done`**（票 01–14，见 [.scratch/proactive-companion-runtime/issues/](.scratch/proactive-companion-runtime/issues/)），后续两票（16 聊天时间与导入入口、17 启动访问地址）也已 `done`。`src`/`web`/`test`/`tools` 已落地，`npm test` 108 条通过、`npm run check` 干净。架构见 [ARCHITECTURE.md](docs/ARCHITECTURE.md)，行为清单见 [spec.md](.scratch/proactive-companion-runtime/spec.md)。
+
+**流程分叉**：新行为写票，修 bug 不写票（`/fix-bug`）。判据见 [Workflow.md](Workflow.md) §0。
 
 ## 1. 仓库地图
 
@@ -24,7 +26,7 @@
 | [docs/agents/domain.md](docs/agents/domain.md) | 领域文档约定（GLOSSARY/ADR 格式） | 只读 |
 | [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md) | 票放哪、状态词、怎么关票 | 只读 |
 | [.specify/](.specify/) | speckit 模板与空 constitution | 只读 |
-| `.dsh/`、`.opencode/` | 工具侧技能与命令配置 | 只读（与本项目业务无关） |
+| `.dsh/`、`.opencode/` | 工具侧技能与命令配置（`.dsh/skills/<name>/SKILL.md` 就是本仓库生效的 skill，含 `/fix-bug`） | 只读；**新增本项目 skill 除外**（写 `.dsh/skills/<name>/SKILL.md`，走 PR） |
 | `src/`、`web/`、`test/`、`tools/` | 代码（已落地：53 个 src 模块 + 1 个 ps1 / 1 个 SPA / 21 个测试文件 + 4 个 helper / 工具脚本） | 读写 |
 | [.github/](.github/) | CI 门禁 `workflows/ci.yml` + PR 模板 | 只读；改门禁要先问人（Rule §8-A8） |
 | `data/` | 运行时生成：`companion.db`、`cards/`、`avatars/`、`logs/`、`config.json`、`runtime.json` | **不提交、不手工编辑、不读真实用户数据** |
@@ -32,7 +34,7 @@
 ## 2. 读文件顺序（每次开工先走一遍，别跳）
 
 1. **本文件** + [Rule.md](Rule.md)（3 分钟，先知道什么不许干）。
-2. **当前票**：`.scratch/proactive-companion-runtime/issues/NN-*.md`（只有它规定这次要做什么）。
+2. **判定走哪条路**：bug（期望行为已写定）→ 读 `.dsh/skills/fix-bug/SKILL.md`，不读票；新行为 → 读当前票 `.scratch/proactive-companion-runtime/issues/NN-*.md`（只有它规定这次要做什么）。
 3. **spec 对应节**：`.scratch/proactive-companion-runtime/spec.md` 的该票涉及段落 + `Implementation Decisions` 里相关 D 编号。
 4. **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** 的 §4（模块契约）、§6（HTTP 契约）、§8（红线归属），确认改动落在哪个模块。
 5. 需要时再查：[GLOSSARY.md](GLOSSARY.md)（用词）、[docs/adr/](docs/adr/)（为什么这样）、PRD 具体章节（grep 章节号，不要整篇读）、[prototype/index.html](prototype/index.html)（文案与视觉，只看不改）。
@@ -74,11 +76,12 @@
 10. **零新增依赖。** 任何第三方包（含 devDependency）都要先改 ADR-0002 并取得人同意。
 11. **密钥只回后四位。** 日志、事件、错误信息里永不出现 key 与卡片全文。
 12. **改对外契约（§6 表）要同时改 `web/`、`test/s1`，并先问人。**
-13. **`main` 只接受合并。** 一票一分支 `ticket-NN-<slug>`，一票一 PR；代理**不许**自己 `gh pr merge`，也不许直推 `main`（例外：纯文档错别字，不碰 `src/`/`web/`/`test/`/`tools/` 任何可执行代码）。
+13. **`main` 只接受合并。** 一票一分支 `ticket-NN-<slug>`（新行为）或 `fix-<slug>`（bug），一票一 PR；代理**不许**自己 `gh pr merge`，也不许直推 `main`（例外：纯文档错别字，不碰 `src/`/`web/`/`test/`/`tools/` 任何可执行代码）。
 
 ## 5. 交付纪律
 
-- 一票一闭环：切分支 → 改码 → `npm test` → `npm run check` → 勾验收项 → `Status: done` → 票末写 `## Notes`（落地了什么、与 spec 的偏差、遗留）→ 提 PR → 人合并。
+- **先分叉，再动手**：期望行为还没写定 → 走票（切分支 → 改码 → `npm test` → `npm run check` → 勾验收项 → `Status: done` → 票末写 `## Notes` → 提 PR → 人合并）；期望行为已在 spec/PRD/原型/用例里写定、只是实现没跟上 → 走 `/fix-bug`，**不写票**（`fix-<slug>` 分支 → 红测 → 修 → 门禁 → 一个 commit → 五段短 PR → 人合并）。判据表在 [Workflow.md](Workflow.md) §0，拿不准就按票走。
+- bug 通道不许顺手补票、不许写「修复记录.md」这类旁路文档；记录只在 commit message、PR body、用例名三处。
 - 失败就报失败：不许用 `skip`、`only`、注释掉断言、放宽阈值来"让测试绿"；也不许改 CI 让它变绿。
 - 不许顺手重构别的模块、不许顺手改 spec/PRD/prototype 来迁就实现；发现 spec 有问题 → 停下，写进票的 Notes 并向人提出。
 - 汇报格式：改了什么文件 / 测试怎么跑 / 结果 / 偏差与风险 / 下一步。

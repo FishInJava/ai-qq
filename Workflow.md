@@ -1,7 +1,8 @@
 # Workflow.md — 从 Spec 到验收
 
 > 这份文件规定**一个代理如何把一张票做完**。它不重复约束（在 [Rule.md](Rule.md)）也不重复形状（在 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)）。
-> 一句话：**取票 → 复述 → 红测 → 实现 → 门禁 → 关票 → 提 PR → 人合并 → 汇报**，一票一闭环，不许半成品横向铺开。
+> 这句话：**取票 → 复述 → 红测 → 实现 → 门禁 → 关票 → 提 PR → 人合并 → 汇报**，一票一闭环，不许半成品横向铺开。
+> 修 bug 走短链，没有票：`/fix-bug` → 红测 → 修 → 门禁 → 一个 commit → 五段 PR → 人合并。判据见 §0。
 
 ---
 
@@ -16,7 +17,15 @@
 | 形状与契约 | `docs/ARCHITECTURE.md` | 架构 |
 | 约束 | `Rule.md` | 架构 |
 
-**没有票就不写代码。** 除 M0 的脚手架票之外，任何实现都必须能指到一张票；指不到就先补票（见 §12.3）。
+**新行为必须有票，修 bug 不必。** 判据只有一条：**期望行为是不是已经写定了**。
+
+| 情况 | 期望行为在哪 | 走哪 |
+|---|---|---|
+| 新功能 / 新界面 / 新接口 / 改已定行为 | 还没写定 → 要先对齐 | **票**：`to-spec` → `to-tickets`，或手写一张（见 §12.3） |
+| bug / 回归 / 小修 | 已写在 spec、PRD、原型、现有用例里 | **`/fix-bug`**：不写票，一个 commit 一个短 PR（见 `.dsh/skills/fix-bug/SKILL.md`） |
+| 拿不准 | — | 按票走。多一个票文件只是多一行记录；漏掉票是行为漂移没人记得为什么 |
+
+bug 通道的硬前提：不新引入任何行为，只把实现改回约定；不碰 §6 契约、数据模型、依赖、§8 同意项。修到一半发现要靠新行为才能解决，就升级成票（`fix-bug` SKILL 的 §7）。
 
 ---
 
@@ -82,6 +91,7 @@ git switch -c ticket-NN-<slug>
 ```
 
 - 分支名 `ticket-NN-<slug>`，`NN` 是票号，`<slug>` 抄票文件名后半段。例：`ticket-14-m7-model-settings-ui`。
+- 走 `/fix-bug` 的 bug 用 `fix-<slug>`，不带票号。例：`fix-startup-url-port`。分支名里出现 `ticket-` 就说明它本该是票。
 - 一票一分支。**不许一分支干两票**，也不许两票共用一个 PR。
 - 并行两票（§12.4）时各自开分支，各自开 PR。
 - 发现分支上跑偏了：`git switch main` 重新切，别在脏分支上打补丁掩盖。
@@ -205,6 +215,8 @@ npm run smoke                      # 起进程 → /health → 优雅退出
 
 ## 8. 阶段 6：验收与关票
 
+**只有票需要关。** bug 走 `/fix-bug`，没有票，也就没有勾选、`Status`、`Notes` 三步——它的记录是 commit message 和 PR body。
+
 按 `docs/agents/issue-tracker.md` 的三步关票：
 
 1. 验收项逐条勾 `- [x]`（勾之前**重跑**一次对应用例，别凭记忆）。
@@ -237,6 +249,10 @@ gh pr create --base main --title "ticket-NN: <票标题>" --body-file .github/pu
 ```
 
 **PR 描述照 `.github/pull_request_template.md` 填，不许空着开。** 模板里的「验收项」直接从票里复制——勾选状态要在 PR 里也能看到，这样 diff 和验收项在同一页，人一眼能对上。
+
+### 9.1 bug 修复用短版 PR
+
+`/fix-bug` 开的 PR 不套七段模板（没有票就没有「验收项」「同意项」可填），用五段：**症状 / 根因 / 改动 / 验证 / 风险与回归面**。模板在 `.dsh/skills/fix-bug/SKILL.md` §5。五行能写清就别写五段。
 
 PR 里必须出现的三样：
 
@@ -324,15 +340,16 @@ Hotfix 仍走分支 + PR，**但允许 PR 先合、用例后补**：PR 描述里
 
 ```
 [ ] 读 AGENTS.md + Rule.md
-[ ] 从最新 main 切分支 ticket-NN-<slug>
-[ ] 取 frontier 票，Blocked by 全 done
-[ ] 复述四行（目标/改动面/同意项/验收命令）
+[ ] 判定：新行为（切 ticket-NN-<slug>，写票）还是修 bug（切 fix-<slug>，/fix-bug，不写票）
+[ ] 从最新 main 切分支
+[ ] 票：取 frontier 票，Blocked by 全 done
+[ ] 票：复述四行（目标/改动面/同意项/验收命令）
 [ ] 先写红测（S1/S2/S3，用户视角命名）
 [ ] 垂直实现：store → 业务 → http → web
 [ ] npm run check / 相关用例 / npm test / smoke
 [ ] 红 → 分类 → 修实现，不改期望（§7）
-[ ] 勾验收项（重跑过）→ Status: done → ## Notes
-[ ] push 分支 → 照模板开 PR（不自己合）
+[ ] 票：勾验收项（重跑过）→ Status: done → ## Notes
+[ ] push 分支 → 票照七段模板开 PR，bug 照五段短版（§9.1）
 [ ] 等 CI 双平台绿 + 人看 diff + 人合并
 [ ] 回 main 拉取，五段汇报
 ```
