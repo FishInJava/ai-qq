@@ -16,6 +16,12 @@
             <span class="brand__meta" id="brandMeta">本地常驻</span>
           </div>
           <div class="rail__actions">
+            <button class="icon-btn" id="settingsOpen" type="button" aria-label="模型设置" title="模型设置" aria-haspopup="dialog" aria-controls="settingsDialog">
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="10" cy="10" r="2.6" />
+                <path d="M10 3.2v1.6M10 15.2v1.6M16.8 10h-1.6M4.8 10H3.2M14.8 5.2l-1.1 1.1M6.3 13.7l-1.1 1.1M14.8 14.8l-1.1-1.1M6.3 6.3 5.2 5.2" />
+              </svg>
+            </button>
             <button class="icon-btn" id="importOpen" type="button" aria-label="导入角色卡" title="导入角色卡">
               <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
                 <path d="M10 4v12M4 10h12" />
@@ -355,6 +361,56 @@
         <span class="foot-note">删了就找不回来了。</span>
         <button class="btn" id="deleteCancel" type="button">取消</button>
         <button class="btn btn--danger" id="deleteConfirm" type="button">删除</button>
+      </footer>
+    </dialog>
+
+    <dialog class="dialog dialog--compact" id="settingsDialog" aria-labelledby="settingsTitle" aria-modal="true">
+      <header class="dialog__head">
+        <div>
+          <p class="eyebrow">模型设置</p>
+          <h2 id="settingsTitle">她听谁说话</h2>
+        </div>
+        <button class="icon-btn" id="settingsClose" type="button" aria-label="关闭模型设置">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+            <path d="m3.5 3.5 9 9M12.5 3.5l-9 9" />
+          </svg>
+        </button>
+      </header>
+
+      <div class="dialog__scroll">
+        <form class="settings" id="settingsForm" novalidate>
+          <label class="settings__field">
+            <span class="settings__label">接口地址</span>
+            <input class="settings__input" id="llmBaseUrl" name="base_url" type="text" spellcheck="false" autocomplete="off" placeholder="https://api.example.com/v1" />
+            <small class="settings__hint">OpenAI 兼容端点，末尾不用写 /chat/completions。</small>
+          </label>
+
+          <label class="settings__field">
+            <span class="settings__label">密钥</span>
+            <input class="settings__input" id="llmApiKey" name="api_key" type="password" spellcheck="false" autocomplete="off" />
+            <small class="settings__hint" id="llmApiKeyHint">只存在本机的配置文件里，界面上永远只回后四位。</small>
+          </label>
+
+          <label class="settings__field">
+            <span class="settings__label">对话模型</span>
+            <input class="settings__input" id="llmChatModel" name="chat_model" type="text" spellcheck="false" autocomplete="off" placeholder="用来聊天和主动开口" />
+          </label>
+
+          <label class="settings__field">
+            <span class="settings__label">小模型</span>
+            <input class="settings__input" id="llmUtilityModel" name="utility_model" type="text" spellcheck="false" autocomplete="off" placeholder="留空就跟对话模型同一个" />
+            <small class="settings__hint">用来抽取记忆、写摘要、生成生活事件。</small>
+          </label>
+
+          <p class="settings__error" id="settingsError" hidden></p>
+          <p class="proto-footnote">内容由模型生成，请自行判断。</p>
+        </form>
+      </div>
+
+      <footer class="dialog__foot">
+        <span class="foot-note">保存后下一句就用新配置</span>
+        <button class="btn" id="settingsCancel" type="button">取消</button>
+        <button class="btn btn--primary" id="settingsSave" type="button">保存</button>
       </footer>
     </dialog>
 

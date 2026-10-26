@@ -10,6 +10,10 @@ const state = {
   importRequestId: 0,
   exportTarget: null,
   deleteTarget: null,
+  settings: {
+    loaded: false,
+    busy: false,
+  },
   lastExportUrl: null,
   messages: new Map(),
   historyLoaded: new Set(),
@@ -110,6 +114,18 @@ const els = {
   deleteWarning: $('deleteWarning'),
   deleteCancel: $('deleteCancel'),
   deleteConfirm: $('deleteConfirm'),
+  settingsOpen: $('settingsOpen'),
+  settingsDialog: $('settingsDialog'),
+  settingsClose: $('settingsClose'),
+  settingsCancel: $('settingsCancel'),
+  settingsSave: $('settingsSave'),
+  settingsForm: $('settingsForm'),
+  settingsError: $('settingsError'),
+  llmBaseUrl: $('llmBaseUrl'),
+  llmApiKey: $('llmApiKey'),
+  llmApiKeyHint: $('llmApiKeyHint'),
+  llmChatModel: $('llmChatModel'),
+  llmUtilityModel: $('llmUtilityModel'),
   toast: $('toast'),
 };
 
@@ -1412,6 +1428,104 @@ async function confirmDelete() {
   }
 }
 
+/* ---------- model settings ---------- */
+function maskHint(masked) {
+  return masked
+    ? `已保存 ${masked}，留空不改。`
+    : '只存在本机的配置文件里，界面上永远只回后四位。';
+}
+
+function setSettingsBusy(busy) {
+  state.settings.busy = busy;
+  // 没读到当前配置时不给保存，避免把空表单写回磁盘覆盖掉已有设置。
+  els.settingsSave.disabled = busy || !state.settings.loaded;
+  els.settingsCancel.disabled = busy;
+  els.settingsClose.disabled = busy;
+  els.settingsSave.textContent = busy ? '保存中…' : '保存';
+}
+
+function showSettingsError(message) {
+  els.settingsError.textContent = message;
+  els.settingsError.hidden = message === '';
+}
+
+function fillSettings(config) {
+  const llm = config?.llm ?? {};
+  els.llmBaseUrl.value = typeof llm.base_url === 'string' ? llm.base_url : '';
+  els.llmApiKey.value = '';
+  els.llmApiKeyHint.textContent = maskHint(typeof llm.api_key === 'string' ? llm.api_key : '');
+  els.llmChatModel.value = typeof llm.chat_model === 'string' ? llm.chat_model : '';
+  els.llmUtilityModel.value = typeof llm.utility_model === 'string' ? llm.utility_model : '';
+  showSettingsError('');
+}
+
+async function openSettings() {
+  state.settings.loaded = false;
+  if (!els.settingsDialog.open) {
+    els.settingsDialog.showModal();
+  }
+  els.llmBaseUrl.focus();
+  setSettingsBusy(true);
+  showSettingsError('');
+  try {
+    const response = await fetch('/api/config', { headers: { Accept: 'application/json' } });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body.error?.message ?? '暂时读不到配置');
+    }
+    state.settings.loaded = true;
+    fillSettings(body.config);
+  } catch (err) {
+    state.settings.loaded = false;
+    showSettingsError(err instanceof Error && err.message ? err.message : '暂时读不到配置');
+  } finally {
+    setSettingsBusy(false);
+  }
+}
+
+function closeSettings() {
+  if (els.settingsDialog.open) {
+    els.settingsDialog.close();
+  }
+}
+
+async function saveSettings() {
+  if (state.settings.busy || !state.settings.loaded) {
+    return;
+  }
+
+  const llm = {
+    base_url: els.llmBaseUrl.value.trim(),
+    api_key: els.llmApiKey.value.trim(),
+    chat_model: els.llmChatModel.value.trim(),
+    utility_model: els.llmUtilityModel.value.trim(),
+  };
+
+  setSettingsBusy(true);
+  showSettingsError('');
+
+  try {
+    const response = await fetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ llm }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      showSettingsError(body.error?.message ?? '没能保存，请稍后再试');
+      return;
+    }
+    fillSettings(body.config);
+    state.settings.loaded = true;
+    closeSettings();
+    showToast('已保存，下一句就用新配置');
+  } catch {
+    showSettingsError('服务没有响应，请稍后再试');
+  } finally {
+    setSettingsBusy(false);
+  }
+}
+
 function hasFiles(event) {
   return Array.from(event.dataTransfer?.types ?? []).includes('Files');
 }
@@ -1493,6 +1607,28 @@ els.deleteConfirm.addEventListener('click', () => void confirmDelete());
 els.deleteDialog.addEventListener('close', () => {
   state.deleteTarget = null;
   setDeleteBusy(false);
+});
+
+els.settingsOpen.addEventListener('click', () => void openSettings());
+els.settingsClose.addEventListener('click', closeSettings);
+els.settingsCancel.addEventListener('click', closeSettings);
+els.settingsSave.addEventListener('click', () => void saveSettings());
+els.settingsForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  void saveSettings();
+});
+els.settingsDialog.addEventListener('close', () => {
+  state.settings.loaded = false;
+  setSettingsBusy(false);
+  showSettingsError('');
+});
+// 点遮罩关闭：`<dialog>` 自身的点击落在 ::backdrop 上时 event.target 就是 dialog。
+// 保存中不给关，否则用户会以为没存上。
+els.settingsDialog.addEventListener('click', (event) => {
+  if (event.target !== els.settingsDialog || state.settings.busy) {
+    return;
+  }
+  closeSettings();
 });
 
 els.drawerOpen.addEventListener('click', () => void openDrawer());

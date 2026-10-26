@@ -1797,6 +1797,72 @@ details.desc p {
   color: #fffaf2;
 }
 
+/* ---------- model settings ---------- */
+.settings {
+  display: grid;
+  gap: 15px;
+  margin: 0;
+}
+
+.settings__field {
+  display: block;
+}
+
+.settings__label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--ink-3);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+}
+
+.settings__input {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  outline: 0;
+  background: var(--surface-2);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 12px;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.settings__input:focus {
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+}
+
+.settings__input::placeholder {
+  color: var(--ink-3);
+  font-family: var(--sans);
+}
+
+.settings__hint {
+  display: block;
+  margin-top: 5px;
+  color: var(--ink-3);
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+
+.settings__error {
+  margin: 0;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--bad) 28%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bad) 6%, var(--panel));
+  color: var(--bad);
+  font-size: 11.5px;
+  line-height: 1.7;
+}
+
+.settings .proto-footnote {
+  margin: 0;
+}
+
 /* ---------- toast / mobile ---------- */
 .toast {
   position: fixed;
