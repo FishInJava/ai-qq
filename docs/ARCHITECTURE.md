@@ -466,6 +466,8 @@ data: {"tokens":88,"estimated":false,"quota":{"used":1234,"limit":500000,"ratio"
 
 **不在配置里出现的开关**：风格（四判据）、系统腔文案、锚点校验、供应商回退。它们不是配置项，是红线。
 
+`llm.*` 由页面「模型设置」写入，每次调用时读取，保存即生效；`server.port` 与 `runtime.test_hooks` 变更返回 `restart_required: true`，需重启进程。
+
 ---
 
 ## 12. 建设顺序（M0–M6 → 模块 → 票）

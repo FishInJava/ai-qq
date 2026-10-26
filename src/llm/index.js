@@ -105,7 +105,8 @@ function timeoutError(cause) {
  * }} options
  */
 export function createLlm({ config, clock, log, retryDelaysMs = RETRY_DELAYS_MS }) {
-  const llmConfig = config.llm;
+  // 每次调用都读当前配置：设置页保存后会整体替换 `config.llm`，抓引用会拿到旧对象。
+  const llmConfig = () => config.llm ?? {};
 
   function wait(ms) {
     return new Promise((resolve) => {
@@ -121,8 +122,9 @@ export function createLlm({ config, clock, log, retryDelaysMs = RETRY_DELAYS_MS 
     stream,
     jsonMode,
   }) {
+    const settings = llmConfig();
     // 配置错误要在建定时器与发请求之前暴露，不能被下面的网络错误兜底吞掉。
-    const endpoint = endpointOf(llmConfig);
+    const endpoint = endpointOf(settings);
 
     const controller = new AbortController();
     const timer = clock.setTimer(() => controller.abort(), timeoutMs);
@@ -150,7 +152,7 @@ export function createLlm({ config, clock, log, retryDelaysMs = RETRY_DELAYS_MS 
         headers: {
           'Content-Type': 'application/json',
           Accept: stream ? 'text/event-stream' : 'application/json',
-          ...(llmConfig.api_key ? { Authorization: `Bearer ${llmConfig.api_key}` } : {}),
+          ...(settings.api_key ? { Authorization: `Bearer ${settings.api_key}` } : {}),
         },
         body: JSON.stringify(body),
         signal: controller.signal,
@@ -255,12 +257,13 @@ export function createLlm({ config, clock, log, retryDelaysMs = RETRY_DELAYS_MS 
    * @param {{ messages: object[], maxTokens?: number, timeoutMs?: number, jsonMode?: boolean }} options
    */
   async function* chatStream({ messages, maxTokens, timeoutMs, jsonMode = false }) {
-    const model = modelOf(llmConfig, 'chat');
+    const settings = llmConfig();
+    const model = modelOf(settings, 'chat');
     const { response, clear, controller } = await openWithRetry({
       messages,
       model,
       maxTokens,
-      timeoutMs: timeoutMs ?? llmConfig.chat_timeout_ms,
+      timeoutMs: timeoutMs ?? settings.chat_timeout_ms,
       stream: true,
       jsonMode,
     });
@@ -336,11 +339,12 @@ export function createLlm({ config, clock, log, retryDelaysMs = RETRY_DELAYS_MS 
   }
 
   async function chatOnce({ messages, timeoutMs, jsonMode = false, retry = true }) {
-    const model = modelOf(llmConfig, 'utility');
+    const settings = llmConfig();
+    const model = modelOf(settings, 'utility');
     const { response, clear, controller } = await openWithRetry({
       messages,
       model,
-      timeoutMs: timeoutMs ?? llmConfig.utility_timeout_ms,
+      timeoutMs: timeoutMs ?? settings.utility_timeout_ms,
       stream: false,
       jsonMode,
     }, { retry });
@@ -387,7 +391,7 @@ export function createLlm({ config, clock, log, retryDelaysMs = RETRY_DELAYS_MS 
         { role: 'system', content: system },
         { role: 'user', content: user },
       ],
-      timeoutMs: timeoutMs ?? llmConfig.utility_timeout_ms,
+      timeoutMs: timeoutMs ?? llmConfig().utility_timeout_ms,
       jsonMode: true,
       retry,
     });
