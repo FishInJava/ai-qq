@@ -1,0 +1,36 @@
+# 运行时数据（绝不提交：含用户对话、记忆、角色卡与 API Key）
+data/
+
+# 依赖与打包产物（本项目按 ADR-0002 应为空）
+node_modules/
+dist/
+build/
+
+# 日志与临时
+*.log
+logs/
+tmp/
+coverage/
+*.tsbuildinfo
+
+# 数据库与备份
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.corrupt-*.db
+
+# 本地环境
+.env
+.env.*
+!.env.example
+
+# 编辑器/系统
+.vscode/*
+!.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# 本地 tracker 的临时笔记（票与 spec 要提交，notes 不强制）
+.scratch/**/notes/
