@@ -116,20 +116,35 @@ test('消息 SSE 事件带 created_at，前端能据此渲染时间与日期分�
   });
 });
 
-test('页面上导入角色卡只有左下角一个入口，没有重复的十字按钮', async () => {
+test('任何状态下导入入口都只有一个，且删掉的重复入口不再回来', async () => {
   await withApp(async (app) => {
-    const html = await (await fetch(`${app.baseUrl}/`)).text();
+    const pageOf = async () => (await fetch(`${app.baseUrl}/`)).text();
+    const countOf = (html, id) => (html.match(new RegExp(`id="${id}"`, 'g')) ?? []).length;
 
-    // 原型基线：rail 底部一个 import-zone，头部只有关闭（+ 模型设置）。
-    assert.match(html, /id="importZone"/, '左下角入口必须存在');
-    assert.doesNotMatch(html, /id="importOpen"/, '头部不应再有重复的导入十字按钮');
+    // 1) 空库：只剩一个导入入口。
+    const empty = await pageOf();
+    assert.equal(countOf(empty, 'stageImport'), 1, '空库时导入入口应恰好一个');
+    assert.equal(countOf(empty, 'importZone'), 0, '左下角的重复入口必须已删除');
+    assert.equal(countOf(empty, 'importOpen'), 0, '头部十字按钮必须已删除');
 
+    // 2) 有卡但未开始：入口仍在（它常驻在角色库头部，不随舞台切换消失）。
+    const imported = await importCard(app, makeV2Card({ name: '入口甲' }));
+    const intro = await pageOf();
+    assert.equal(countOf(intro, 'stageImport'), 1, '选卡后导入入口仍应存在且只有一个');
+    assert.equal(countOf(intro, 'importZone'), 0);
+
+    // 3) 聊天中：入口仍在。
+    await startCard(app, imported.card.id);
+    const chat = await pageOf();
+    assert.equal(countOf(chat, 'stageImport'), 1, '聊天中导入入口仍应存在且只有一个');
+    assert.equal(countOf(chat, 'importZone'), 0);
+
+    // 4) 入口必须真的打开导入弹窗，而不是个死按钮。
     const script = await (await fetch(`${app.baseUrl}/app.js`)).text();
-    assert.match(script, /importZone/);
-    assert.doesNotMatch(script, /importOpen/, '脚本不应再绑定已删除的入口');
-
-    // 点击入口必须仍然打开导入弹窗。
-    assert.match(html, /id="importDialog"/);
+    assert.match(script, /stageImport/);
     assert.match(script, /openImport/);
+    assert.doesNotMatch(script, /importZone/, '脚本不应再引用已删除的入口');
+    assert.doesNotMatch(script, /importOpen/, '脚本不应再引用已删除的入口');
+    assert.match(empty, /id="importDialog"/);
   });
 });
