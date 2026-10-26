@@ -335,7 +335,7 @@ erDiagram
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET | `/api/sessions/:id/messages?before=&limit=` | 历史（倒序取、正序返） |
-| POST | `/api/sessions/:id/messages` | `{ text }` → `text/event-stream`：`user_ack` → `bubble`* → `done{tokens, estimated, quota}` / `error{code, message}` |
+| POST | `/api/sessions/:id/messages` | `{ text }` → `text/event-stream`：`user_ack{message_id, created_at}` → `bubble{message_id, bubble_index, text, incomplete, created_at}`* → `done{tokens, estimated, quota}` / `error{code, message}` |
 | GET | `/api/events` | 全局 SSE：`message`（任意会话新消息）、`state`、`quota`、`tick`、`import` |
 | PATCH | `/api/sessions/:id` | `{ active?: bool, token_limit?: number }` |
 | POST | `/api/sessions/:id/refill` | `{ amount }` → 提高 `token_limit`，**不复位 `token_used`**，置"好转"标记 |
@@ -363,12 +363,17 @@ erDiagram
 ### 6.4 SSE 帧格式
 
 ```
+event: user_ack
+data: {"message_id":41,"created_at":"2026-10-26T14:22:03.114Z"}
+
 event: bubble
-data: {"message_id":42,"bubble_index":1,"text":"嗯 我知道","incomplete":false}
+data: {"message_id":42,"bubble_index":1,"text":"嗯 我知道","incomplete":false,"created_at":"2026-10-26T14:22:07.905Z"}
 
 event: done
 data: {"tokens":88,"estimated":false,"quota":{"used":1234,"limit":500000,"ratio":0.0025,"warn":false}}
 ```
+
+`created_at` 是 UTC ISO8601（`clock.iso()` 产出），随消息一起给出，**页面不做任何时间计算，只把它格式化成本地 `HH:mm` 并据此插日期分隔行**。同一条回复的多个气泡共享同一个 `created_at`（一次生成的批时间），页面才不会把同一句话拆到两个日期下。
 
 断流时前端保留半句并把该气泡标 `incomplete`（后端 `messages.incomplete = 1`）。
 

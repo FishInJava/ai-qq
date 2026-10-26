@@ -122,6 +122,22 @@ export function createClock({ now = () => Date.now() } = {}) {
     },
 
     /**
+     * UTC ISO8601 → 本地 HH:mm；非法输入返回 null。
+     * 页面只渲染这个字符串，不自己算时间（硬规则 1）。
+     *
+     * @param {string} iso
+     * @returns {string | null}
+     */
+    localClockText(iso) {
+      const ms = Date.parse(iso);
+      if (!Number.isFinite(ms)) {
+        return null;
+      }
+      const date = new Date(ms);
+      return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+    },
+
+    /**
      * @param {number} [ms]
      * @returns {number} 当日本地分钟数（08:30 → 510）
      */

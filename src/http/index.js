@@ -96,7 +96,7 @@ export function createHttp({
   const router = createRouter();
   registerCardRoutes(router, { cards, library, session });
   registerSessionRoutes(router, { session });
-  registerMessageRoutes(router, { chat });
+  registerMessageRoutes(router, { chat, log });
   registerMemoryRoutes(router, { memory });
   registerLivingRoutes(router, { living });
   registerScheduleRoutes(router, { schedule, config });
