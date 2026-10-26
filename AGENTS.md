@@ -13,7 +13,7 @@
 | 路径 | 是什么 | 你的权限 |
 |---|---|---|
 | [Rule.md](Rule.md) | 项目约束（架构边界/技术栈/规范/禁止项/人类同意清单） | 只读，且必须遵守 |
-| [Workflow.md](Workflow.md) | spec → 拆票 → 改码 → 测试 → 验收 → 关票 | 只读，且必须遵守 |
+| [Workflow.md](Workflow.md) | 分支 → 改码 → 门禁 → 关票 → 提 PR → 人合并 | 只读，且必须遵守 |
 | [GLOSSARY.md](GLOSSARY.md) | 领域词汇唯一来源 | 只读；要造词先改这里 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 模块边界、依赖方向、HTTP/SSE 契约、数据模型、红线归属 | 只读；改形状要先改它 + ADR |
 | [docs/adr/](docs/adr/) | 已落地的架构决策（0001–0006） | 新增；不改旧文 |
@@ -26,6 +26,7 @@
 | [.specify/](.specify/) | speckit 模板与空 constitution | 只读 |
 | `.dsh/`、`.opencode/` | 工具侧技能与命令配置 | 只读（与本项目业务无关） |
 | `src/`、`web/`、`test/`、`tools/` | 代码（已落地：53 个 src 模块 + 1 个 ps1 / 1 个 SPA / 21 个测试文件 + 4 个 helper / 工具脚本） | 读写 |
+| [.github/](.github/) | CI 门禁 `workflows/ci.yml` + PR 模板 | 只读；改门禁要先问人（Rule §8-A8） |
 | `data/` | 运行时生成：`companion.db`、`cards/`、`avatars/`、`logs/`、`config.json`、`runtime.json` | **不提交、不手工编辑、不读真实用户数据** |
 
 ## 2. 读文件顺序（每次开工先走一遍，别跳）
@@ -73,14 +74,15 @@
 10. **零新增依赖。** 任何第三方包（含 devDependency）都要先改 ADR-0002 并取得人同意。
 11. **密钥只回后四位。** 日志、事件、错误信息里永不出现 key 与卡片全文。
 12. **改对外契约（§6 表）要同时改 `web/`、`test/s1`，并先问人。**
+13. **`main` 只接受合并。** 一票一分支 `ticket-NN-<slug>`，一票一 PR；代理**不许**自己 `gh pr merge`，也不许直推 `main`（例外：纯文档错别字，不碰 `src/`/`web/`/`test/`/`tools/` 任何可执行代码）。
 
 ## 5. 交付纪律
 
-- 一票一闭环：改码 → `npm test` → `npm run check` → 勾验收项 → `Status: done` → 票末写 `## Notes`（落地了什么、与 spec 的偏差、遗留）。
-- 失败就报失败：不许用 `skip`、`only`、注释掉断言、放宽阈值来"让测试绿"。
+- 一票一闭环：切分支 → 改码 → `npm test` → `npm run check` → 勾验收项 → `Status: done` → 票末写 `## Notes`（落地了什么、与 spec 的偏差、遗留）→ 提 PR → 人合并。
+- 失败就报失败：不许用 `skip`、`only`、注释掉断言、放宽阈值来"让测试绿"；也不许改 CI 让它变绿。
 - 不许顺手重构别的模块、不许顺手改 spec/PRD/prototype 来迁就实现；发现 spec 有问题 → 停下，写进票的 Notes 并向人提出。
 - 汇报格式：改了什么文件 / 测试怎么跑 / 结果 / 偏差与风险 / 下一步。
 
 ## 6. 子代理与并行
 
-派子代理时，把"先读 `AGENTS.md` 与 `Rule.md`，再读本票与相关 spec 段落"写进任务说明；子代理同样受 §4 约束，且**不许**由子代理决定架构形状或新增依赖——这类决定回到主线程并问人。
+派子代理时，把"先读 `AGENTS.md` 与 `Rule.md`，再读本票与相关 spec 段落"写进任务说明；子代理同样受 §4 约束，且**不许**由子代理决定架构形状或新增依赖——这类决定回到主线程并问人。子代理**不许自己开 PR 或合并**；分支推上去后由主线程开 PR、由人合并。

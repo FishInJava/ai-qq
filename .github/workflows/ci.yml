@@ -1,0 +1,51 @@
+# CI 门禁，对应 Workflow.md §5（门禁）与 Rule.md §8-A8。
+# 门禁只有三条，顺序与本地完全一致：check → test → smoke。
+# 不装依赖、不跑 lint、不缓存 npm（本项目零依赖，ADR-0002）。
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# 只读仓库内容：CI 不写库、不发版、不碰 data/。
+permissions:
+  contents: read
+
+# 同一分支连推时取消旧运行，省额度也避免"绿的是旧提交"。
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: 门禁（${{ matrix.os }}）
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # 产品是 Windows 优先（托盘/自启/守护脚本），但核心运行时跨平台。
+        # 两边都跑，是为了让"只在 Windows 绿"的假设尽早暴露。
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: 取代码
+        uses: actions/checkout@v4
+
+      - name: 装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: 环境信息
+        run: node --version
+
+      - name: 静态自检（禁词 / 裸时间 API / 依赖方向 / SQL 越界）
+        run: npm run check
+
+      - name: 全量测试（S1 契约 / S2 假 LLM / S3 时间调度）
+        run: npm test
+
+      - name: 冒烟（起进程 → /health → 优雅退出）
+        run: npm run smoke
