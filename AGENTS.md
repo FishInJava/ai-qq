@@ -8,7 +8,7 @@
 
 **当前状态**：PRD、封板决策、spec、可交互原型、项目架构均已定稿；**M0–M7 共 14 票全部 `done`**（票 01–14，见 [.scratch/proactive-companion-runtime/issues/](.scratch/proactive-companion-runtime/issues/)），后续两票（16 聊天时间与导入入口、17 启动访问地址）也已 `done`。`src`/`web`/`test`/`tools` 已落地，`npm test` 108 条通过、`npm run check` 干净。架构见 [ARCHITECTURE.md](docs/ARCHITECTURE.md)，行为清单见 [spec.md](.scratch/proactive-companion-runtime/spec.md)。
 
-**流程分叉**：新行为写票，修 bug 不写票（`/fix-bug`）。判据见 [Workflow.md](Workflow.md) §0。
+**流程分叉**：两条通道，入口是命令而不是判断——用户打 `/fix-bug` 走轻通道（不写票），没打就走票。见 [Workflow.md](Workflow.md) §0。
 
 ## 1. 仓库地图
 
@@ -34,7 +34,7 @@
 ## 2. 读文件顺序（每次开工先走一遍，别跳）
 
 1. **本文件** + [Rule.md](Rule.md)（3 分钟，先知道什么不许干）。
-2. **判定走哪条路**：bug（期望行为已写定）→ 读 `.dsh/skills/fix-bug/SKILL.md`，不读票；新行为 → 读当前票 `.scratch/proactive-companion-runtime/issues/NN-*.md`（只有它规定这次要做什么）。
+2. **判定走哪条路（看命令，不看你的判断）**：用户输入了 `/fix-bug` → 读 `.dsh/skills/fix-bug/SKILL.md`，不读票；否则读当前票 `.scratch/proactive-companion-runtime/issues/NN-*.md`（只有它规定这次要做什么）。
 3. **spec 对应节**：`.scratch/proactive-companion-runtime/spec.md` 的该票涉及段落 + `Implementation Decisions` 里相关 D 编号。
 4. **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** 的 §4（模块契约）、§6（HTTP 契约）、§8（红线归属），确认改动落在哪个模块。
 5. 需要时再查：[GLOSSARY.md](GLOSSARY.md)（用词）、[docs/adr/](docs/adr/)（为什么这样）、PRD 具体章节（grep 章节号，不要整篇读）、[prototype/index.html](prototype/index.html)（文案与视觉，只看不改）。
@@ -80,7 +80,7 @@
 
 ## 5. 交付纪律
 
-- **先分叉，再动手**：期望行为还没写定 → 走票（切分支 → 改码 → `npm test` → `npm run check` → 勾验收项 → `Status: done` → 票末写 `## Notes` → 提 PR → 人合并）；期望行为已在 spec/PRD/原型/用例里写定、只是实现没跟上 → 走 `/fix-bug`，**不写票**（`fix-<slug>` 分支 → 红测 → 修 → 门禁 → 一个 commit → 五段短 PR → 人合并）。判据表在 [Workflow.md](Workflow.md) §0，拿不准就按票走。
+- **分叉由命令决定，不由你猜**：用户打了 `/fix-bug` → 走轻通道，**不写票**（`fix-<slug>` 分支 → 红测 → 修 → 门禁 → 一个 commit → 五段短 PR → 人合并）；没打 → 走票（切分支 → 改码 → `npm test` → `npm run check` → 勾验收项 → `Status: done` → 票末写 `## Notes` → 提 PR → 人合并）。你觉得"这只是小修"也**不许**自己切通道——问一句：「这条走 `/fix-bug` 还是开票？」判据表在 [Workflow.md](Workflow.md) §0。
 - bug 通道不许顺手补票、不许写「修复记录.md」这类旁路文档；记录只在 commit message、PR body、用例名三处。
 - 失败就报失败：不许用 `skip`、`only`、注释掉断言、放宽阈值来"让测试绿"；也不许改 CI 让它变绿。
 - 不许顺手重构别的模块、不许顺手改 spec/PRD/prototype 来迁就实现；发现 spec 有问题 → 停下，写进票的 Notes 并向人提出。
