@@ -1,0 +1,22 @@
+{
+  "name": "proactive-companion",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "npm@11.6.2",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning src/index.js",
+    "dev": "node --watch --disable-warning=ExperimentalWarning src/index.js",
+    "test": "node --test --test-concurrency=4 \"test/**/*.test.js\"",
+    "test:s1": "node --test \"test/s1/**/*.test.js\"",
+    "test:s2": "node --test \"test/s2/**/*.test.js\"",
+    "test:s3": "node --test \"test/s3/**/*.test.js\"",
+    "fake-llm": "node tools/fake-llm/server.js --port 4100",
+    "check": "node tools/check.js",
+    "smoke": "node tools/smoke.js",
+    "db:reset": "node tools/db-reset.js"
+  }
+}
