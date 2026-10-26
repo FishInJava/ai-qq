@@ -6,7 +6,7 @@
 
 一个本地单机、常驻进程的桌面陪伴产品：把 SillyTavern V2 角色卡拖进来，她就活在一个会自己过日子的 Node 进程里，你不说话时她也按自己的节奏（有锚点、有预算、有三态）决定要不要找你。
 
-**当前状态**：PRD、封板决策、spec、可交互原型、项目架构均已定稿；**M0–M6 共 13 票全部 `done`**（票 01–13，见 [.scratch/proactive-companion-runtime/issues/](.scratch/proactive-companion-runtime/issues/)）。`src`/`web`/`test`/`tools` 已落地，`npm test` 102 条通过、`npm run check` 干净。架构见 [ARCHITECTURE.md](docs/ARCHITECTURE.md)，行为清单见 [spec.md](.scratch/proactive-companion-runtime/spec.md)。
+**当前状态**：PRD、封板决策、spec、可交互原型、项目架构均已定稿；**M0–M7 共 14 票全部 `done`**（票 01–14，见 [.scratch/proactive-companion-runtime/issues/](.scratch/proactive-companion-runtime/issues/)）。`src`/`web`/`test`/`tools` 已落地，`npm test` 105 条通过、`npm run check` 干净。架构见 [ARCHITECTURE.md](docs/ARCHITECTURE.md)，行为清单见 [spec.md](.scratch/proactive-companion-runtime/spec.md)。
 
 ## 1. 仓库地图
 
@@ -25,7 +25,7 @@
 | [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md) | 票放哪、状态词、怎么关票 | 只读 |
 | [.specify/](.specify/) | speckit 模板与空 constitution | 只读 |
 | `.dsh/`、`.opencode/` | 工具侧技能与命令配置 | 只读（与本项目业务无关） |
-| `src/`、`web/`、`test/`、`tools/` | 代码（已落地：54 个 src 模块 / 1 个 SPA / 24 个测试文件 / 工具脚本） | 读写 |
+| `src/`、`web/`、`test/`、`tools/` | 代码（已落地：53 个 src 模块 + 1 个 ps1 / 1 个 SPA / 21 个测试文件 + 4 个 helper / 工具脚本） | 读写 |
 | `data/` | 运行时生成：`companion.db`、`cards/`、`avatars/`、`logs/`、`config.json`、`runtime.json` | **不提交、不手工编辑、不读真实用户数据** |
 
 ## 2. 读文件顺序（每次开工先走一遍，别跳）
