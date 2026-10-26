@@ -503,54 +503,6 @@ textarea:disabled {
   text-underline-offset: 3px;
 }
 
-.rail__foot {
-  padding: 10px 14px 14px;
-  border-top: 1px solid var(--line);
-}
-
-.import-zone {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px dashed var(--line-strong);
-  border-radius: 10px;
-  background: transparent;
-  color: var(--ink-2);
-  text-align: left;
-  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease;
-}
-
-.import-zone:hover,
-.is-dragging .import-zone {
-  border-color: var(--accent);
-  background: var(--accent-tint);
-  color: var(--accent-ink);
-}
-
-.import-zone__icon {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  background: var(--surface-3);
-  color: currentColor;
-}
-
-.import-zone strong {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.import-zone small {
-  display: block;
-  color: var(--ink-3);
-  font-size: 10px;
-}
-
 /* ---------- stage ---------- */
 .stage {
   position: relative;
