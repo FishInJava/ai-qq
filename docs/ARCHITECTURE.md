@@ -335,7 +335,7 @@ erDiagram
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET | `/api/sessions/:id/messages?before=&limit=` | 历史（倒序取、正序返） |
-| POST | `/api/sessions/:id/messages` | `{ text }` → `text/event-stream`：`user_ack` → `bubble`* → `done{tokens, estimated, quota}` / `error{code, message}` |
+| POST | `/api/sessions/:id/messages` | `{ text }` → `text/event-stream`：`user_ack{message_id, created_at, clock_text, local_day}` → `bubble{message_id, bubble_index, text, incomplete, created_at, clock_text, local_day}`* → `done{tokens, estimated, quota}` / `error{code, message}` |
 | GET | `/api/events` | 全局 SSE：`message`（任意会话新消息）、`state`、`quota`、`tick`、`import` |
 | PATCH | `/api/sessions/:id` | `{ active?: bool, token_limit?: number }` |
 | POST | `/api/sessions/:id/refill` | `{ amount }` → 提高 `token_limit`，**不复位 `token_used`**，置"好转"标记 |
@@ -363,8 +363,11 @@ erDiagram
 ### 6.4 SSE 帧格式
 
 ```
+event: user_ack
+data: {"message_id":41,"created_at":"2026-10-26T14:22:03.114Z","clock_text":"22:22","local_day":"2026-10-26"}
+
 event: bubble
-data: {"message_id":42,"bubble_index":1,"text":"嗯 我知道","incomplete":false}
+data: {"message_id":42,"bubble_index":1,"text":"嗯 我知道","incomplete":false,"created_at":"2026-10-26T14:22:07.905Z","clock_text":"22:22","local_day":"2026-10-26"}
 
 event: done
 data: {"tokens":88,"estimated":false,"quota":{"used":1234,"limit":500000,"ratio":0.0025,"warn":false}}
