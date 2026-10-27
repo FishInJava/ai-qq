@@ -491,7 +491,9 @@ function stagePr(options) {
   }
 
   if (options.create) {
-    const create = run('gh', ['pr', 'create', '--base', base, '--title', options.title ?? title, '--body-file', bodyFile]);
+    // gh 要的是主分支名，不是 git 的引用名：origin/main → main。
+    const baseBranch = state.base.replace(/^origin\//, '');
+    const create = run('gh', ['pr', 'create', '--base', baseBranch, '--title', options.title ?? title, '--body-file', bodyFile]);
     if (create.code !== 0) {
       out(`  gh pr create 失败：${create.stderr.trim()}`);
       return false;
