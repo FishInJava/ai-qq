@@ -458,7 +458,8 @@ export function createSchedule({
     started = true;
 
     if (config.runtime?.cold_start_proactive !== true) {
-      store.sessions.silenceColdStart();
+      // 只沉默从未对话的新会话；同时清掉旧版本残留在已聊会话上的沉默位。
+      store.sessions.reconcileColdStart();
     }
 
     unsubscribe = bus.subscribe((topic, payload) => {

@@ -208,6 +208,7 @@ export function openStore({ dataDir, clock, log }) {
     markProactive: (id, at) => sessionsRepo.markProactive(store, id, at),
     setHardDedup: (id, at) => sessionsRepo.setHardDedup(store, id, at),
     silenceColdStart: () => sessionsRepo.silenceColdStart(store),
+    reconcileColdStart: () => sessionsRepo.reconcileColdStart(store),
     silenceColdStartFor: (id) => sessionsRepo.silenceColdStartFor(store, id),
     bumpIgnored: (id) => sessionsRepo.bumpIgnored(store, id),
     addTokens: (id, amount) => sessionsRepo.addTokens(store, id, amount),

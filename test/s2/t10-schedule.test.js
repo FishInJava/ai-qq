@@ -11,6 +11,7 @@ import { createSchedule } from '../../src/schedule/index.js';
 import { createStyle } from '../../src/style/index.js';
 import { createBus } from '../../src/runtime/bus.js';
 import { openStore } from '../../src/store/index.js';
+import { getHandle } from '../../src/store/handle.js';
 
 const FIXED_MS = Date.parse('2026-10-01T02:00:00.000Z');
 const MINUTE_MS = 60 * 1000;
@@ -101,6 +102,11 @@ function makeFixture(overrides = {}) {
     store.sessions.markUserMessage(sessionId, clock.iso(clock.now() - (minutesAgo * MINUTE_MS)));
   }
 
+  // 模拟旧版本行为：重启时无差别把指定 active 会话置成冷启动沉默。
+  function forceColdStartSilenced(sessionId) {
+    getHandle(store).prepare('UPDATE sessions SET cold_start_silenced = 1 WHERE id = ?').run(sessionId);
+  }
+
   function advance(ms) {
     current += ms;
   }
@@ -154,6 +160,7 @@ function makeFixture(overrides = {}) {
     addEvent,
     addFact,
     markUser,
+    forceColdStartSilenced,
     advance,
     makeSchedule,
     close() {
@@ -462,12 +469,11 @@ test('预算：全局 3 / 角色 2，超出当天不再发，次日额度重新�
   }
 });
 
-test('冷启动沉默：启动时已有 active 会话先不开口，用户发言后恢复', async () => {
+test('冷启动沉默：从未对话的新会话启动时先不开口，用户发言后恢复', async () => {
   const fixture = makeFixture({ runtime: { cold_start_proactive: false } });
   try {
     const { store, config } = fixture;
     const sessionId = fixture.addSession();
-    fixture.markUser(sessionId, 60);
     fixture.addEvent(sessionId, '今天把窗台擦了，屋里有点湿土味。', 1);
     fixture.addFact(sessionId, 'city', '杭州');
     config.schedule.cooldown_min = 0;
@@ -475,12 +481,68 @@ test('冷启动沉默：启动时已有 active 会话先不开口，用户发言
     const schedule = fixture.makeSchedule(scriptedLlm());
     schedule.start();
     try {
+      // 从没说过话：重启后必须沉默，不刷屏。
       assert.equal(store.sessions.findById(sessionId).cold_start_silenced, 1);
       assert.equal((await schedule.runTick(sessionId, 'manual')).reason, 'cold_start');
 
       store.sessions.markUserMessage(sessionId, fixture.clock.iso());
       assert.equal(store.sessions.findById(sessionId).cold_start_silenced, 0);
       assert.equal((await schedule.runTick(sessionId, 'manual')).decision, 'send');
+    } finally {
+      schedule.stop();
+    }
+  } finally {
+    fixture.close();
+  }
+});
+
+test('冷启动沉默：已经聊过的会话重启后不再被重新沉默，到点能主动开口', async () => {
+  const fixture = makeFixture({ runtime: { cold_start_proactive: false } });
+  try {
+    const { store, config } = fixture;
+    const sessionId = fixture.addSession();
+    // 重启之前已经聊过：最后一句在 60 分钟前，越过 15 分钟冷却。
+    fixture.markUser(sessionId, 60);
+    // 模拟旧版本：重启时无差别把所有 active 会话置成沉默。
+    fixture.forceColdStartSilenced(sessionId);
+    assert.equal(store.sessions.findById(sessionId).cold_start_silenced, 1);
+    fixture.addEvent(sessionId, '今天把窗台擦了，屋里有点湿土味。', 1);
+    fixture.addFact(sessionId, 'city', '杭州');
+    config.schedule.cooldown_min = 0;
+    config.schedule.willingness_threshold = 0;
+    const schedule = fixture.makeSchedule(scriptedLlm());
+    schedule.start();
+    try {
+      // 启动校正清掉残留：老会话不再被重启沉默挡下，不需要用户再先说一句。
+      assert.equal(store.sessions.findById(sessionId).cold_start_silenced, 0);
+      assert.equal((await schedule.runTick(sessionId, 'manual')).decision, 'send');
+    } finally {
+      schedule.stop();
+    }
+  } finally {
+    fixture.close();
+  }
+});
+
+test('冷启动沉默：只收到过主动消息的会话重启后也不再沉默；冷却仍然挡刷屏', async () => {
+  const fixture = makeFixture({ runtime: { cold_start_proactive: false } });
+  try {
+    const { store, config } = fixture;
+    const proactiveOnly = fixture.addSession();
+    store.sessions.markProactive(proactiveOnly, fixture.clock.iso(fixture.clock.now() - 60 * MINUTE_MS));
+    config.schedule.cooldown_min = 0;
+    const schedule = fixture.makeSchedule(scriptedLlm());
+    schedule.start();
+    try {
+      assert.equal(store.sessions.findById(proactiveOnly).cold_start_silenced, 0);
+      // 越过了冷启动这一层；这里没锚点，所以停在 no_anchor，而不是 cold_start。
+      assert.notEqual((await schedule.runTick(proactiveOnly, 'manual')).reason, 'cold_start');
+
+      // 防刷屏没被放松：刚说过话且在 15 分钟冷却内，仍然 too_soon。
+      const fresh = fixture.addSession();
+      fixture.markUser(fresh, 0);
+      config.schedule.cooldown_min = 15;
+      assert.equal((await schedule.runTick(fresh, 'manual')).reason, 'too_soon');
     } finally {
       schedule.stop();
     }
