@@ -330,6 +330,60 @@ test('锚点复核：id 不在集合、type 不对、正文不含关键片段都
   }
 });
 
+test('她只提到锚点里几个字的具体说法时消息发得出来，泛泛问候仍然被丢弃', () => {
+  const fixture = makeFixture();
+  try {
+    const sessionId = fixture.addSession();
+    // 真实事件长这样：一整句中文，中间没有可切分的标点，模型不可能整句复述。
+    const tattoo = fixture.addEvent(sessionId, 'Sakura今天在“暗之花”纹身店给客人纹了日式恶鬼图案', 1);
+    // 英文角色的生活事件是英文的，回复却可能只有一句中文，能原样对上的只有英文词。
+    const english = fixture.addEvent(
+      sessionId,
+      'I pulled a quick smuggling run for eddies, bitching the whole way through back a',
+      2,
+    );
+
+    const proactive = fixture.makeProactive(scriptedLlm(() => '{}'));
+    const anchors = proactive.buildAnchors(sessionId);
+
+    assert.equal(
+      proactive.validate(
+        { bubbles: ['今天在暗之花给人纹了只恶鬼，手有点酸。'], anchor: { type: 'event', id: tattoo } },
+        anchors,
+      ).ok,
+      true,
+    );
+    assert.equal(
+      proactive.validate(
+        { bubbles: ['eddies 那趟活儿结得比想的快。'], anchor: { type: 'event', id: english } },
+        anchors,
+      ).ok,
+      true,
+    );
+
+    // 只碰巧共用一个虚词，不算提到了这件事。
+    const generic = proactive.validate(
+      { bubbles: ['从那边 through 过来一路都挺顺。'], anchor: { type: 'event', id: english } },
+      anchors,
+    );
+    assert.equal(generic.ok, false);
+    assert.equal(generic.detail, 'anchor_text_mismatch');
+
+    const smallTalk = proactive.validate(
+      { bubbles: ['在干嘛呢。'], anchor: { type: 'event', id: tattoo } },
+      anchors,
+    );
+    assert.equal(smallTalk.ok, false);
+    assert.equal(smallTalk.detail, 'anchor_text_mismatch');
+
+    // 校验放宽的前提是提示词要求她原样抄一个具体说法。
+    const context = proactive.buildContext(sessionId, anchors);
+    assert.match(context.messages[0].content, /原样抄/);
+  } finally {
+    fixture.close();
+  }
+});
+
 test('事件锚点：生成通过校验，提交写消息、留痕、标记已用并扣一次预算', async () => {
   const fixture = makeFixture();
   try {
