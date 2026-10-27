@@ -40,7 +40,6 @@ const els = {
   noResults: $('noResults'),
   clearSearch: $('clearSearch'),
   search: $('search'),
-  importZone: $('importZone'),
   stageEmpty: $('stageEmpty'),
   emptyTitle: $('emptyTitle'),
   emptyText: $('emptyText'),
@@ -264,7 +263,6 @@ function renderEmpty() {
   els.emptyText.textContent = hasCards
     ? '从左边选一张卡，或者再拖一张进来。'
     : '把一张酒馆角色卡拖进来，先看看她是谁。';
-  els.stageImport.textContent = hasCards ? '导入角色卡' : '选择角色卡';
 }
 
 function renderIntro(card) {
@@ -1653,7 +1651,6 @@ document.addEventListener('dragend', () => {
   document.body.classList.remove('is-dragging');
 });
 
-els.importZone.addEventListener('click', openImport);
 els.stageImport.addEventListener('click', openImport);
 els.importClose.addEventListener('click', closeImport);
 els.importCancel.addEventListener('click', closeImport);

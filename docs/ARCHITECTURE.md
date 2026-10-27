@@ -184,7 +184,7 @@ canGenerate(sessionId)             // state === 'active' | 'paused'（dormant �
 | `paused` | 在忙 | 是 | 否 |
 | `dormant` | 不方便 | 否（只回极短或沉默，且不出系统腔） | 否 |
 
-迁移只能走 `transition()`；每次成功迁移写 `state_change` 事件（bus + 日志）。非法迁移（如 `dormant → paused`）丢弃并记 warn，不改库。重启是自环：状态不变，置 `cold_start_silenced = 1`。
+迁移只能走 `transition()`；每次成功迁移写 `state_change` 事件（bus + 日志）。非法迁移（如 `dormant → paused`）丢弃并记 warn，不改库。重启是自环：状态不变，仅对**从未对话过**（`last_user_msg_at` 与 `last_proactive_at` 均为空）的会话置 `cold_start_silenced = 1`。
 
 ### 4.5 `llm`
 

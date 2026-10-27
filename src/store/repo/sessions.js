@@ -165,25 +165,65 @@ export function setHardDedup(store, id, at) {
 }
 
 /**
- * 冷启动沉默：重启后不主动开口，直到用户先说话（R1，可在配置里打开主动）。
+ * 冷启动沉默：重启后，只有「从未对话过」的 active 会话不主动开口，
+ * 直到用户先说第一句（R1 收窄）。已经聊过（有过用户消息或收到过主动消息）
+ * 的会话重启后按正常节奏评估，避免一重启就必须用户再开口；防刷屏仍由
+ * 冷却 / tick 抖动 / 意愿 / 每日预算 / 硬触发这些既有闸门负责。
  *
  * @param {object} store
  */
 export function silenceColdStart(store) {
   getHandle(store)
-    .prepare("UPDATE sessions SET cold_start_silenced = 1 WHERE state = 'active'")
+    .prepare(`
+      UPDATE sessions
+      SET cold_start_silenced = 1
+      WHERE state = 'active'
+        AND last_user_msg_at IS NULL
+        AND last_proactive_at IS NULL
+    `)
     .run();
 }
 
 /**
- * 单个会话的重启自环：状态不变，只置冷启动沉默。
+ * 启动校正：把每个 active 会话的冷启动沉默位重置到与「是否从未对话」一致。
+ * 除给新会话置沉默外，还会清掉旧版本残留在「已聊会话」上的沉默位
+ * （旧实现重启时会无差别置 1，升级后用户不该被这个残留挡住）。
+ *
+ * @param {object} store
+ */
+export function reconcileColdStart(store) {
+  const handle = getHandle(store);
+  handle.prepare(`
+    UPDATE sessions
+    SET cold_start_silenced = 1
+    WHERE state = 'active'
+      AND last_user_msg_at IS NULL
+      AND last_proactive_at IS NULL
+  `).run();
+  handle.prepare(`
+    UPDATE sessions
+    SET cold_start_silenced = 0
+    WHERE state = 'active'
+      AND (last_user_msg_at IS NOT NULL OR last_proactive_at IS NOT NULL)
+  `).run();
+}
+
+/**
+ * 单个会话的重启自环：状态不变；仅在「从未对话过」时置冷启动沉默，
+ * 与批量重启的口径一致。
  *
  * @param {object} store
  * @param {number} id
  */
 export function silenceColdStartFor(store, id) {
   getHandle(store)
-    .prepare('UPDATE sessions SET cold_start_silenced = 1 WHERE id = ?')
+    .prepare(`
+      UPDATE sessions
+      SET cold_start_silenced = 1
+      WHERE id = ?
+        AND last_user_msg_at IS NULL
+        AND last_proactive_at IS NULL
+    `)
     .run(id);
 }
 

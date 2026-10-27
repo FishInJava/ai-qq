@@ -170,6 +170,11 @@ export async function start({ dataDir } = {}) {
     const { port } = await http.start();
     schedule.start();
     writeRuntimeFile({ dataDir: dir, port, clock });
+
+    // 服务只绑 127.0.0.1（见 http 模块），给用户一行能直接在浏览器打开的地址；
+    // 用实际监听端口：端口 0 自动分配、或被占用递增时也不会指错地方。
+    // 组合根是全项目唯一写 stdout 的位置（tools/check.js 已豁免 runtime）。
+    process.stdout.write(`她已经醒着了，打开页面：http://127.0.0.1:${port}\n`);
     const autostartState = syncAutostart({
       dataDir: dir,
       projectRoot,

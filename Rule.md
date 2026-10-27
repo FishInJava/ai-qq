@@ -200,10 +200,10 @@ bus     ──> 无
 
 1. `npm test` 全绿；`npm run check` 无输出。
 2. **CI 在 `ubuntu-latest` 与 `windows-latest` 上都绿**（`.github/workflows/ci.yml`，跑 check → test → smoke）。本地绿但 CI 红，按红处理。
-3. 改动在 `ticket-NN-<slug>` 分支上，PR 已按 `.github/pull_request_template.md` 填好；**合并由人点**，代理不自己合。
+3. 改动在 `ticket-NN-<slug>`（票）或 `fix-<slug>`（bug，见 `Workflow.md` §0 / `/fix-bug`）分支上，PR 已按对应模板填好（票用 `.github/pull_request_template.md`，bug 用五段短版）；**合并由人点**，代理不自己合。
 4. 新增文件在正确目录（ARCHITECTURE §3.2"不许放什么"）。
 5. 没有新增反向依赖边、没有裸时间 API、没有裸 SQL、没有 `console.*`。
 6. 碰了红线？（§7）碰了契约？（§6 表 / A2）
 7. 改动是否需要 §8 的同意？需要就先别合。
-8. 票的验收项全勾、`Status: done`、`## Notes` 写了偏差与遗留。
+8. 票：验收项全勾、`Status: done`、`## Notes` 写了偏差与遗留。bug 修复：无票，commit body 写清症状/根因/修法/验证，PR body 写清风险与回归面——两处缺一不可（bug 不许补票，票也不许跳过 Notes）。
 9. 配置 schema 没有偷偷长出"风格开关"之类的东西。
