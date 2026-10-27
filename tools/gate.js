@@ -13,7 +13,7 @@ import process from 'node:process';
 
 import {
   ROOT, run, git, currentBranch, listFiles, mergeBase, commitsSince,
-  readTextFile, fileSize, isTextTarget, listSince, listTracked,
+  readTextFile, fileSize, isTextTarget, listSince, listTracked, hasRemote,
 } from './gate/repo.js';
 import {
   ERROR, WARN, parseConsent, checkPaths, checkContent, checkBranch, checkTicket,
@@ -30,7 +30,7 @@ const ISSUE_ROOT = '.scratch';
 function parseArgs(argv) {
   const options = {
     stage: 'all',
-    base: 'main',
+    base: null,
     consent: new Set(),
     paths: [],
     fix: false,
@@ -113,7 +113,7 @@ stage（默认 all）
 flags
   --fix                 format 写回
   --fast                check 只跑静态自检，跳过 test 与 smoke
-  --base=<ref>          对比基，默认 main
+  --base=<ref>          对比基，默认 origin/main（没有远端时用 main）
   --consent=A7,A8       声明人已同意 Rule §8 某条（PR 里仍要贴答复原文）
   --paths=src,test      只看这些前缀下的文件
   --staged              只看已暂存的文件
@@ -543,10 +543,12 @@ function stageInstallHook() {
 
 function runStages(options) {
   state.branch = currentBranch();
-  state.base = options.base;
+  // 本地 main 常常落后，用它当基准会把别人的合并提交算成本分支的改动。
+  state.base = options.base ?? (hasRemote() ? 'origin/main' : 'main');
+  options.base = state.base;
   state.options = options;
-  const base = mergeBase(options.base);
-  out(`gate · 仓库 ${path.basename(ROOT)} · ${state.branch} → ${options.base}${base ? ` (${base.slice(0, 7)})` : ''}`);
+  const base = mergeBase(state.base);
+  out(`gate · 仓库 ${path.basename(ROOT)} · ${state.branch} → ${state.base}${base ? ` (${base.slice(0, 7)})` : ''}`);
   out('');
 
   if (options.stage === 'selftest') return stageSelfTest(options);

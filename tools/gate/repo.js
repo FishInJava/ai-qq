@@ -93,9 +93,13 @@ export function listSince(base) {
   return splitNul(git(['diff', '--name-only', '--diff-filter=ACMR', '-z', from, 'HEAD'], { allowFail: true }));
 }
 
+/**
+ * 本分支独有的 commit。
+ * 刻意用两点（base..HEAD）而不是 merge-base：rebase 之后别人的合并提交也是我的祖先，
+ * 用 merge-base 会把它们全算成"我提交的"，G27 就会去审别人的标题。
+ */
 export function commitsSince(base) {
-  const from = mergeBase(base) ?? base;
-  return git(['log', '--reverse', '--format=%H%x1f%s', `${from}..HEAD`], { allowFail: true })
+  return git(['log', '--reverse', '--format=%H%x1f%s', `${base}..HEAD`], { allowFail: true })
     .split('\n')
     .filter((line) => line.trim().length > 0)
     .map((line) => {
