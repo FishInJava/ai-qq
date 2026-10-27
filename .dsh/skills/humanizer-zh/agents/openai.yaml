@@ -1,0 +1,4 @@
+interface:
+  display_name: "Humanizer 中文"
+  short_description: "中文文本去模板化润色，保留事实、限定与作者声音"
+  default_prompt: "Use $humanizer-zh to 润色这段中文，删掉空话和套话，事实、限定、否定与我的语气不要动。"
