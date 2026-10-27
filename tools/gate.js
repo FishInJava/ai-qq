@@ -13,7 +13,7 @@ import process from 'node:process';
 
 import {
   ROOT, run, git, currentBranch, listFiles, mergeBase, commitsSince,
-  readTextFile, fileSize, isTextTarget, listSince, listTracked, hasRemote,
+  readTextFile, fileSize, isTextTarget, listSince, listTracked, hasRemote, statusSince,
 } from './gate/repo.js';
 import {
   ERROR, WARN, parseConsent, checkPaths, checkContent, checkBranch, checkTicket,
@@ -123,6 +123,7 @@ flags
   --body= --body-file=  bug 通道的四段正文
   --amend                commit 阶段改写上一个提交（推之前收尾用）
   --push --create       pr 阶段推分支 / 调 gh pr create
+
 `;
 
 // ---------------------------------------------------------------- 输出
@@ -421,6 +422,7 @@ function stageCommit(options) {
 }
 
 function stagePr(options) {
+
   // 只看已跟踪文件的改动：工作区里躺着别人的未跟踪目录，不该拦住开 PR。
   const dirty = git(['status', '--porcelain', '--untracked-files=no']).trim();
   if (dirty) {
@@ -444,6 +446,7 @@ function stagePr(options) {
   }
 
   const files = listSince(base).map(rel);
+  const changes = statusSince(base);
   const number = branchTicketNumber(state.branch ?? '');
 
   if (number) {
@@ -459,6 +462,7 @@ function stagePr(options) {
   const { body, title } = buildPrBody({
     branch: state.branch,
     files,
+    changes,
     gate: state.gate,
     consent: options.consent,
     ticket: state.ticket,
@@ -466,6 +470,7 @@ function stagePr(options) {
     commits,
     commitBody,
     number,
+
   });
 
   const bodyFile = path.join(ROOT, '.git', 'gate-pr-body.md');

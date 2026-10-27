@@ -67,22 +67,23 @@ export function buildCommitMessage({ branch, files, ticket, ticketPath, gate, ty
   return `${lines.join('\n')}\n`;
 }
 
-/** 返回 { title, body }。票走七段，fix- 走五段，其余照实列改动。 */
-export function buildPrBody({ branch, files, gate, consent, ticket, ticketPath, commits, commitBody, number }) {
+/** 返回 { title, body }。三条通道都先说人话（这改了什么 / 怎么验的 / 会影响谁），再挂清单。 */
+export function buildPrBody({ branch, files, changes, gate, consent, ticket, ticketPath, commits, commitBody, number }) {
+  const shared = { files, changes, gate };
   if (number) {
     return {
       title: `ticket-${number}: ${ticket?.title ?? branch}`,
-      body: ticketPrBody({ branch, ticket, ticketPath, files, gate, consent, commits }),
+      body: ticketPrBody({ ...shared, branch, ticket, ticketPath, consent, commits }),
     };
   }
   if (branch.startsWith('fix-')) {
     return {
       title: commits.at(-1)?.subject ?? branch,
-      body: fixPrBody({ branch, files, gate, commits, commitBody }),
+      body: fixPrBody({ ...shared, branch, commits, commitBody }),
     };
   }
   return {
     title: commits.at(-1)?.subject ?? branch,
-    body: plainPrBody({ files, gate, commits }),
+    body: plainPrBody({ ...shared, commits }),
   };
 }

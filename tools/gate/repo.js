@@ -94,6 +94,28 @@ export function listSince(base) {
 }
 
 /**
+ * 同上，但带上 git 状态（A/M/D/R/C），给 PR body 的改动面与形状用。
+ * 与 listSince 的差别只在于含删除：PR 里"少了什么"和"多了什么"一样要知道。
+ */
+export function statusSince(base) {
+  const from = mergeBase(base) ?? base;
+  const parts = git(['diff', '--name-status', '--diff-filter=ACMRD', '-z', from, 'HEAD'], { allowFail: true }).split('\0');
+  const changes = [];
+  for (let i = 0; i < parts.length; i += 1) {
+    const code = parts[i];
+    if (!code) continue;
+    if (code.startsWith('R') || code.startsWith('C')) {
+      i += 2; // 重命名/复制是"旧路径\0新路径"，取后者
+      if (parts[i]) changes.push({ path: parts[i], status: code[0] });
+      continue;
+    }
+    i += 1;
+    if (parts[i]) changes.push({ path: parts[i], status: code[0] });
+  }
+  return changes;
+}
+
+/**
  * 本分支独有的 commit。
  * 刻意用两点（base..HEAD）而不是 merge-base：rebase 之后别人的合并提交也是我的祖先，
  * 用 merge-base 会把它们全算成"我提交的"，G27 就会去审别人的标题。
