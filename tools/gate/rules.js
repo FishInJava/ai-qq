@@ -1,6 +1,3 @@
-// 合规规则：把 Rule.md 里"人肉才看得出"的条款变成机检。
-// 每条规则给一个稳定 ID（G01…），报告里能直接 grep，PR 里也能引用。
-// 这里全是纯函数：输入文件/文本，输出 findings。不读 git、不写盘——selftest 靠这一点。
 import path from 'node:path';
 
 export const ERROR = 'error';
@@ -9,7 +6,6 @@ export const WARN = 'warn';
 const MB = 1024 * 1024;
 const MAX_FILE_BYTES = 512 * 1024;
 
-/** Rule §8 的同意项：声明了才降级，且 PR 里必须贴人的答复原文。 */
 const CONSENT_KEYS = new Set(['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'A11', 'A12', 'A13']);
 
 export function parseConsent(raw) {
@@ -31,25 +27,17 @@ function lineOf(text, index) {
   return line;
 }
 
-// ---------------------------------------------------------------- 路径规则
-
 const RUNTIME_DATA = /^(?:data|logs|coverage)\/|(?:^|\/)\.env(?:\.|$)|\.db(?:-wal|-shm|-journal)?$|^(?:\.tmp-|\.?repro[./-])|(?:^|\/)NUL$|\.corrupt-[\w-]*\.db$/;
 const UPSTREAM_READONLY = /^prototype\/|^主动陪伴AI聊天助手_PRD|^docs\/ai-companion-spec\.md$|^docs\/agents\//;
 const CI_GATE = /^\.github\/(?:workflows|actions)\//;
 const FLOW_DOCS = /^(?:AGENTS|Rule|Workflow|GLOSSARY)\.md$/;
 
 const KEEP_OUT_OF_GIT = [
-  // 命中即拦：这些进了仓库，等于把用户的对话、密钥或调试现场公开。
   { id: 'G01', pattern: RUNTIME_DATA, message: '运行时数据 / 密钥 / 排障产物不入库（Rule §7-18、.gitignore）' },
   { id: 'G02', pattern: UPSTREAM_READONLY, text: '上游只读产物被改（Rule §8-A7）；确属人已同意就 --consent=A7', consent: 'A7' },
   { id: 'G03', pattern: CI_GATE, message: '改 CI 门禁属 Rule §8-A8，须先取得人同意；已同意就 --consent=A8', consent: 'A8' },
 ];
 
-/**
- * 路径级检查。
- * @param {{ path: string, size?: number }[]} files
- * @param {{ consent?: Set<string> }} options
- */
 export function checkPaths(files, { consent = new Set() } = {}) {
   const findings = [];
 
@@ -83,8 +71,6 @@ export function checkPaths(files, { consent = new Set() } = {}) {
   return findings;
 }
 
-// ---------------------------------------------------------------- 内容规则
-
 const SECRET_PATTERNS = [
   { id: 'G10', pattern: /\bsk-[A-Za-z0-9_-]{20,}/g, label: '疑似 OpenAI 风格密钥' },
   { id: 'G10', pattern: /\bgh[pousr]_[A-Za-z0-9]{20,}/g, label: '疑似 GitHub token' },
@@ -96,7 +82,6 @@ const SECRET_PATTERNS = [
 const API_KEY_ASSIGN = /\bapi[_-]?key\b\s*[:=]\s*["']([^"']{16,})["']/gi;
 const PLACEHOLDER = /^[x*<.{]+$|xxxx|YOUR_|REPLACE|CHANGE_ME|EXAMPLE|test[-_]?key|REDACTED/i;
 
-/** `sk-xxxx`、`sk-<your key>`、`sk-***` 是文档占位符，不是泄露。 */
 function looksPlaceholder(value) {
   return PLACEHOLDER.test(value) || value.includes('<') || value.includes('…');
 }
@@ -108,12 +93,6 @@ const SYSTEM_TONE = /(?:作为|身为)\s*(?:一个)?\s*AI\b|(?:token|Token)\s*(?
 const SYSTEM_TONE_SCOPE = /^src\/(?:chat|proactive|style)\//;
 const CODE_SCOPE = /^(?:src|tools|web|test)\//;
 
-/**
- * 内容级检查。文本文件才进这里（二进制调用方负责跳过）。
- * @param {string} file 仓库相对路径
- * @param {string} text 文件全文
- * @param {{ consent?: Set<string> }} options
- */
 export function checkContent(file, text, { consent = new Set() } = {}) {
   const findings = [];
   const normalized = file.replaceAll('\\', '/');
@@ -123,7 +102,6 @@ export function checkContent(file, text, { consent = new Set() } = {}) {
     secret.pattern.lastIndex = 0;
     const match = secret.pattern.exec(text);
     if (!match || looksPlaceholder(match[0])) continue;
-    // 文档里写 `sk-...` 八成是例子（本仓库 Rule.md 自己就在讲密钥怎么存），降级不放过。
     findings.push(finding(
       'G10',
       isMarkdown ? WARN : ERROR,
@@ -132,7 +110,6 @@ export function checkContent(file, text, { consent = new Set() } = {}) {
     ));
   }
 
-  // 文档里的 api_key 例子是正常的（Rule.md 就在讲这件事），只查代码文件。
   if (!isMarkdown && CODE_SCOPE.test(normalized)) {
     API_KEY_ASSIGN.lastIndex = 0;
     let match = API_KEY_ASSIGN.exec(text);
@@ -189,8 +166,6 @@ export function checkContent(file, text, { consent = new Set() } = {}) {
   return findings;
 }
 
-// ---------------------------------------------------------------- 分支与票
-
 const BRANCH_OK = /^(?:ticket-\d+-[\w-]+|fix-[\w-]+|chore[/-][\w-]+|docs?[/-][\w-]+)$/;
 
 export function branchTicketNumber(branch) {
@@ -198,9 +173,6 @@ export function branchTicketNumber(branch) {
   return match ? match[1] : null;
 }
 
-/**
- * @param {{ branch: string, allowMain?: boolean, base?: string }} context
- */
 export function checkBranch({ branch, allowMain = false }) {
   const findings = [];
 
@@ -220,10 +192,6 @@ export function checkBranch({ branch, allowMain = false }) {
   return findings;
 }
 
-/**
- * 票文件解析。不做格式强校验——票是给人读的，这里只取关票需要的三个事实。
- * @param {string} text 票全文
- */
 export function parseTicket(text) {
   const status = /\*\*Status:\*\*\s*([a-z-]+)/i.exec(text)?.[1] ?? null;
   const title = /^#\s*\d*:?\s*(.+)$/m.exec(text)?.[1]?.trim() ?? null;
@@ -258,10 +226,6 @@ export function parseTicket(text) {
   };
 }
 
-/**
- * 关票与提 PR 的前置条件（Workflow §8、§9）。
- * @param {{ ticket: ReturnType<typeof parseTicket>, path: string, stage: string }} context
- */
 export function checkTicket({ ticket, path: ticketPath, stage }) {
   const findings = [];
   const strict = stage === 'pr';
@@ -303,7 +267,6 @@ export function checkCommitSubjects(commits) {
   return findings;
 }
 
-/** 有代码改动却没有测试改动——提示而不是拦，hotfix 与纯文档改动都会走到这里。 */
 export function checkTestCoverage(files, { hotfix = false } = {}) {
   const findings = [];
   const touchedCode = files.filter((file) => /^src\/.*\.js$/.test(file.replaceAll('\\', '/')));
@@ -317,7 +280,6 @@ export function checkTestCoverage(files, { hotfix = false } = {}) {
   return findings;
 }
 
-/** 一票一分支：改动散在太多模块通常是票粒度不对（Workflow §12.3）。 */
 export function checkScope(files) {
   const modules = new Set();
   for (const file of files) {

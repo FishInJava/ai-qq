@@ -50,13 +50,6 @@ function physChunk() {
   return chunk('pHYs', data);
 }
 
-/**
- * 1×1 RGBA PNG；chara 块放 base64 JSON。
- *
- * @param {object | string} card
- * @param {{ pixel?: [number, number, number, number], keyword?: string }} [options]
- * @returns {Buffer}
- */
 export function makePngCard(card, { pixel = [180, 107, 79, 255], keyword = 'chara' } = {}) {
   const jsonText = typeof card === 'string' ? card : JSON.stringify(card);
   const base64 = Buffer.from(jsonText, 'utf8').toString('base64');
@@ -82,9 +75,6 @@ export function makePngCard(card, { pixel = [180, 107, 79, 255], keyword = 'char
   ]);
 }
 
-/**
- * @param {object} [overrides]
- */
 export function makeV2Card(overrides = {}) {
   const {
     name = '林夏',
@@ -117,9 +107,6 @@ export function makeV2Card(overrides = {}) {
   };
 }
 
-/**
- * @param {object} [overrides]
- */
 export function makeV1Card(overrides = {}) {
   return {
     name: '顾青',
@@ -132,7 +119,6 @@ export function makeV1Card(overrides = {}) {
   };
 }
 
-/** @param {object} card */
 export function jsonBytes(card) {
   return Buffer.from(`${JSON.stringify(card, null, 2)}\n`, 'utf8');
 }

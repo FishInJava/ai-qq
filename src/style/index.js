@@ -123,25 +123,7 @@ function matchBlacklist(text) {
   return null;
 }
 
-/**
- * 风格是硬约束：提示词内嵌四条判据，后置过滤负责碎片化与系统腔。
- * 不提供任何“风格开关”。
- */
 export function createStyle() {
-  /**
-   * @param {{
-   *   name: string,
-   *   description?: string,
-   *   personality?: string,
-   *   scenario?: string,
-   *   mesExample?: string,
-   *   firstMes?: string,
-   *   systemPrompt?: string,
-   *   postHistoryInstructions?: string,
-   * }} character
-   * @param {{ pauseGapHours?: number | null, recovered?: boolean, coldStart?: boolean }} [options]
-   * @returns {string}
-   */
   function systemPrompt(character, { pauseGapHours = null, recovered = false, coldStart = false } = {}) {
     const name = typeof character?.name === 'string' && character.name.trim() !== ''
       ? character.name.trim()
@@ -186,14 +168,6 @@ export function createStyle() {
     ].filter((line) => line !== '').join('\n');
   }
 
-  /**
-   * @param {string} text
-   * @returns {{
-   *   bubbles: string[],
-   *   blocked: Array<{ text: string, code: string }>,
-   *   flags: { split: boolean, blacklist: boolean },
-   * }}
-   */
   function postProcess(text) {
     const { bubbles, split } = splitBubbles(text);
     const blocked = [];

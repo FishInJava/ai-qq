@@ -17,10 +17,6 @@ function payloadOf(event) {
   return rest;
 }
 
-/**
- * @param {ReturnType<import('../router.js').createRouter>} router
- * @param {{ chat: object, log?: object }} services
- */
 export function registerMessageRoutes(router, { chat, log }) {
   router.add('GET', '/api/sessions/:id/messages', ({ res, params, url }) => {
     const beforeRaw = url.searchParams.get('before');
@@ -37,7 +33,6 @@ export function registerMessageRoutes(router, { chat, log }) {
     const text = typeof body?.text === 'string' ? body.text : '';
     const iterator = chat.send(sessionId(params.id), text);
 
-    // 第一次 next() 完成所有前置校验与用户消息落库；失败时还能回普通 4xx JSON。
     let first;
     try {
       first = await iterator.next();
@@ -60,7 +55,6 @@ export function registerMessageRoutes(router, { chat, log }) {
       }
     } catch (err) {
       const code = err instanceof AppError ? err.code : 'internal';
-      // 失败必须留痕：否则“她不理我”在现场只剩一条 user 消息，无从排查。
       log?.warn('chat_failed', {
         session_id: Number(params.id),
         code,

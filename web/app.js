@@ -15,7 +15,6 @@ const state = {
     busy: false,
   },
   lastExportUrl: null,
-  // 本地日只由服务端给（/health），页面不自己算时间。
   today: null,
   yesterday: null,
   messages: new Map(),
@@ -298,11 +297,6 @@ function currentCard() {
   return state.cards.find((item) => item.id === state.selectedId) ?? null;
 }
 
-/**
- * 时间全部由服务端算好：clock 是唯一时间源，页面不许碰时间（硬规则 1）。
- * `clock_text` 是本地 HH:mm，`local_day` 是本地 YYYY-MM-DD。
- * 这里只拼「今天/昨天」的措辞与日期分隔行，不做任何日期运算。
- */
 function dayLabelOf(localDay) {
   if (!localDay) {
     return '';
@@ -328,11 +322,6 @@ function metaHtml(group) {
   return `<div class="msg__meta"><span>${who}</span><span aria-hidden="true">·</span><time>${esc(clock)}</time></div>`;
 }
 
-/**
- * 同一次生成的多条气泡合成一个消息块，与原型 `turn` + `bubbles` 的结构一致：
- * 一次回复只出现一个头像位、一组气泡。判据是 `bubble_index` 连续递增
- * （新一次回复总是从 0 开始），因此不需要读时间，SSE 与历史两条路径都适用。
- */
 function groupMessages(list) {
   const groups = [];
   for (const message of list) {
@@ -359,8 +348,6 @@ function renderMessages() {
   const sessionId = card?.session_id;
   const list = sessionId ? state.messages.get(sessionId) ?? [] : [];
 
-  // 先按 local_day 变化给每个组打上日期分隔行（票 16），
-  // 组内多气泡共用一个时间 meta（同一次生成共享 batchAt）。
   const groups = groupMessages(list);
   let lastDay = '';
   els.chatMessages.innerHTML = groups.map((group) => {
@@ -624,8 +611,8 @@ function connectEvents() {
             status: ratio >= 1 ? 'exhausted' : (payload?.warn ? 'warn70' : 'ok'),
           });
           updateQuota(currentCard());
-        } catch {
-          // 坏帧忽略，等下一次用量事件或 GET /api/usage。
+        } catch (error) {
+          void error;
         }
       }
       void loadCards();
@@ -721,8 +708,8 @@ async function loadUsage() {
     }
     state.usage = next;
     updateQuota(currentCard());
-  } catch {
-    // 用量角标是只读装饰；服务短暂不可用时不打扰聊天。
+  } catch (error) {
+    void error;
   }
 }
 
@@ -743,7 +730,6 @@ function updateQuota(card) {
       : ''}`;
 }
 
-/* ---------- detail drawer ---------- */
 const TICK_REASONS = {
   send: '发出主动消息',
   state_not_active: '会话在忙或已安静，不主动开口',
@@ -1389,11 +1375,7 @@ async function downloadExport(format) {
     const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
     let filename = `${card.name}.${format}`;
     if (encoded) {
-      try {
-        filename = decodeURIComponent(encoded[1].trim());
-      } catch {
-        // 文件名头坏了就退回卡名。
-      }
+      filename = decodeURIComponent(encoded[1].trim());
     }
 
     const url = URL.createObjectURL(blob);
@@ -1501,7 +1483,6 @@ async function confirmDelete() {
   }
 }
 
-/* ---------- model settings ---------- */
 function maskHint(masked) {
   return masked
     ? `已保存 ${masked}，留空不改。`
@@ -1510,7 +1491,6 @@ function maskHint(masked) {
 
 function setSettingsBusy(busy) {
   state.settings.busy = busy;
-  // 没读到当前配置时不给保存，避免把空表单写回磁盘覆盖掉已有设置。
   els.settingsSave.disabled = busy || !state.settings.loaded;
   els.settingsCancel.disabled = busy;
   els.settingsClose.disabled = busy;
@@ -1693,8 +1673,6 @@ els.settingsDialog.addEventListener('close', () => {
   setSettingsBusy(false);
   showSettingsError('');
 });
-// 点遮罩关闭：`<dialog>` 自身的点击落在 ::backdrop 上时 event.target 就是 dialog。
-// 保存中不给关，否则用户会以为没存上。
 els.settingsDialog.addEventListener('click', (event) => {
   if (event.target !== els.settingsDialog || state.settings.busy) {
     return;
@@ -1824,21 +1802,12 @@ window.addEventListener('focus', () => {
   void loadCards();
 });
 
-/**
- * 本地日只在启动时问一次服务端：页面没有时钟，也不许自己算。
- * 跨零点后措辞会旧，但页面每次聚焦都会重新 loadCards，
- * 这里一并刷新即可，不做定时器（硬规则 1）。
- */
 async function loadToday() {
-  try {
-    const response = await fetch('/health', { headers: { Accept: 'application/json' } });
-    const body = await response.json();
-    if (body?.today) {
-      state.today = body.today;
-      state.yesterday = body.yesterday ?? null;
-    }
-  } catch {
-    // 拿不到就退回只显示「M月D日」，不影响对话。
+  const response = await fetch('/health', { headers: { Accept: 'application/json' } });
+  const body = await response.json();
+  if (body?.today) {
+    state.today = body.today;
+    state.yesterday = body.yesterday ?? null;
   }
 }
 

@@ -44,11 +44,6 @@ function firstSegment(text) {
   return segment === '' ? clean : segment;
 }
 
-/**
- * 从主动消息提示词里回读第一条锚点，复述它的一部分，保证服务端校验能过。
- *
- * @param {object} body
- */
 function proactiveReply(body) {
   const messages = Array.isArray(body.messages) ? body.messages : [];
   const text = messages.map((message) => String(message?.content ?? '')).join('\n');
@@ -79,13 +74,6 @@ function usageFor(mode) {
   return { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 };
 }
 
-/**
- * 有些剧本（生活事件 / 一致性检查）共用一个模型名，只能按提示词与调用次数分流。
- *
- * @param {string} mode
- * @param {object} body
- * @returns {string | null}
- */
 function replyFor(mode, body) {
   const system = Array.isArray(body.messages) ? String(body.messages[0]?.content ?? '') : '';
   const call = counts.get(mode) ?? 0;
@@ -270,7 +258,6 @@ const server = createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8' });
     res.write(': waiting\n\n');
     res.on('close', () => {
-      // 客户端主动断开，什么都不做。
     });
     return;
   }

@@ -39,11 +39,6 @@ function safeJson(value) {
   }
 }
 
-/**
- * 自建日志：按本地日分文件，10MB 轮转，保留 7 天；事件另写 events.jsonl。
- *
- * @param {{ dataDir: string, clock: import('../clock/index.js').Clock }} options
- */
 export function createLog({ dataDir, clock }) {
   const logDir = path.join(dataDir, 'logs');
   mkdirSync(logDir, { recursive: true });
@@ -62,7 +57,6 @@ export function createLog({ dataDir, clock }) {
         try {
           unlinkSync(path.join(logDir, file));
         } catch {
-          // 清理失败不影响主流程；下次启动继续尝试。
           continue;
         }
       }
@@ -92,27 +86,18 @@ export function createLog({ dataDir, clock }) {
   return {
     dir: logDir,
 
-    /** @param {string} message @param {object} [fields] */
     info(message, fields) {
       write('info', message, fields);
     },
 
-    /** @param {string} message @param {object} [fields] */
     warn(message, fields) {
       write('warn', message, fields);
     },
 
-    /** @param {string} message @param {object} [fields] */
     error(message, fields) {
       write('error', message, fields);
     },
 
-    /**
-     * 事件名严格照 PRD 4.2；属性只写 id、长度、耗时、决策原因。
-     *
-     * @param {string} name
-     * @param {object} [props]
-     */
     event(name, props = {}) {
       appendFileSync(
         eventsPath,
@@ -122,7 +107,6 @@ export function createLog({ dataDir, clock }) {
     },
 
     close() {
-      // appendFileSync 无缓冲，无需 flush；保留方法给 runtime 统一收尾。
     },
   };
 }

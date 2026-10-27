@@ -1,10 +1,5 @@
 import { AppError } from '../errors.js';
 
-/**
- * @param {import('node:http').ServerResponse} res
- * @param {number} status
- * @param {unknown} body
- */
 export function sendJson(res, status, body) {
   const text = JSON.stringify(body);
   res.writeHead(status, {
@@ -16,13 +11,6 @@ export function sendJson(res, status, body) {
   res.end(text);
 }
 
-/**
- * 业务模块只抛 AppError；中文文案与状态码在这里统一映射。
- *
- * @param {import('node:http').ServerResponse} res
- * @param {unknown} err
- * @param {number} [fallbackStatus=500]
- */
 export function sendError(res, err, fallbackStatus = 500) {
   if (res.headersSent) {
     res.destroy();
@@ -34,14 +22,6 @@ export function sendError(res, err, fallbackStatus = 500) {
   sendJson(res, status, { error: { code, message } });
 }
 
-/**
- * 读取原始请求体，超过上限立即拒绝；继续把剩余数据排空，避免连接卡住。
- *
- * @param {import('node:http').IncomingMessage} req
- * @param {number} limit
- * @param {string} [message]
- * @returns {Promise<Buffer>}
- */
 export function readBody(req, limit, message = '内容太大，请选择小一点的文件') {
   return new Promise((resolve, reject) => {
     const declared = Number(req.headers['content-length']);
@@ -91,11 +71,6 @@ export function readBody(req, limit, message = '内容太大，请选择小一�
   });
 }
 
-/**
- * @param {import('node:http').IncomingMessage} req
- * @param {number} [limit]
- * @returns {Promise<unknown>}
- */
 export async function readJson(req, limit = 64 * 1024) {
   const body = await readBody(req, limit, '请求内容太大');
   if (body.length === 0) {
@@ -108,13 +83,6 @@ export async function readJson(req, limit = 64 * 1024) {
   }
 }
 
-/**
- * @param {import('node:http').ServerResponse} res
- * @param {number} status
- * @param {Buffer} buffer
- * @param {string} contentType
- * @param {Record<string, string | number>} [headers]
- */
 export function sendBuffer(res, status, buffer, contentType, headers = {}) {
   res.writeHead(status, {
     'Content-Type': contentType,

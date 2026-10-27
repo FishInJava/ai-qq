@@ -9,17 +9,6 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * 起一个真实的本地假 OpenAI 服务，端口由系统分配。
- * 模型名决定剧本：fake-ok / fake-5xx / fake-flaky / fake-timeout / ...
- *
- * @returns {Promise<{
- *   port: number,
- *   baseUrl: string,
- *   stats: () => Promise<{ counts: Record<string, number> }>,
- *   stop: () => Promise<void>,
- * }>}
- */
 export async function startFakeLlm() {
   const child = spawn(process.execPath, ['tools/fake-llm/server.js', '--port', '0'], {
     cwd: ROOT,

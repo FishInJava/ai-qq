@@ -1,9 +1,5 @@
 import { getHandle } from '../handle.js';
 
-/**
- * @param {object} store
- * @param {number} sessionId
- */
 export function lastForSession(store, sessionId) {
   return getHandle(store)
     .prepare(`
@@ -15,14 +11,6 @@ export function lastForSession(store, sessionId) {
     .get(sessionId) ?? null;
 }
 
-/**
- * 最近一条指定角色的消息时间；用于判断续额后的“好转”是否还没被下一句消费。
- *
- * @param {object} store
- * @param {number} sessionId
- * @param {'user' | 'char' | 'system_note'} role
- * @returns {string | null}
- */
 export function lastCreatedAtForRole(store, sessionId, role) {
   const row = getHandle(store)
     .prepare(`
@@ -35,11 +23,6 @@ export function lastCreatedAtForRole(store, sessionId, role) {
   return row?.created_at ?? null;
 }
 
-/**
- * @param {object} store
- * @param {number} sessionId
- * @param {{ before?: number, limit?: number }} [options]
- */
 export function listForSession(store, sessionId, { before = null, limit = 50 } = {}) {
   return getHandle(store)
     .prepare(`
@@ -51,13 +34,6 @@ export function listForSession(store, sessionId, { before = null, limit = 50 } =
     .all(sessionId, before, before, limit);
 }
 
-/**
- * 记忆抽取只读本轮涉及的几条消息。
- *
- * @param {object} store
- * @param {number} sessionId
- * @param {number[]} ids
- */
 export function listByIds(store, sessionId, ids) {
   if (!Array.isArray(ids) || ids.length === 0) {
     return [];
@@ -72,13 +48,6 @@ export function listByIds(store, sessionId, ids) {
     .all(sessionId, ...ids);
 }
 
-/**
- * 摘要按 id 向后取，返回时间正序。
- *
- * @param {object} store
- * @param {number} sessionId
- * @param {number} afterId
- */
 export function listAfter(store, sessionId, afterId) {
   return getHandle(store)
     .prepare(`
@@ -89,24 +58,6 @@ export function listAfter(store, sessionId, afterId) {
     .all(sessionId, afterId);
 }
 
-/**
- * @param {object} store
- * @param {{
- *   sessionId: number,
- *   role: string,
- *   content: string,
- *   isProactive?: number,
- *   anchorType?: string | null,
- *   anchorId?: number | null,
- *   bubbleIndex?: number | null,
- *   tokens?: number | null,
- *   estimated?: number,
- *   incomplete?: number,
- *   styleFlags?: string | null,
- *   createdAt: string,
- * }} message
- * @returns {number}
- */
 export function insert(store, message) {
   const result = getHandle(store)
     .prepare(`

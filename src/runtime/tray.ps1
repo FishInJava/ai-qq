@@ -1,5 +1,4 @@
-﻿param([string]$RuntimePath)
-# RuntimePath points at data/runtime.json written by the main process.
+param([string]$RuntimePath)
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing

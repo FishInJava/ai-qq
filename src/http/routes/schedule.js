@@ -12,12 +12,6 @@ function idOf(value) {
   return id;
 }
 
-/**
- * 调度留痕只读接口；测试 tick 只在 `runtime.test_hooks === true` 时挂载。
- *
- * @param {ReturnType<import('../router.js').createRouter>} router
- * @param {{ schedule: object, config: object }} services
- */
 export function registerScheduleRoutes(router, { schedule, config }) {
   router.add('GET', '/api/sessions/:id/debug/ticks', ({ res, params, url }) => {
     const limitRaw = url.searchParams.get('limit');

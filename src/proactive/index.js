@@ -15,13 +15,10 @@ const EVENT_TOKENS = 200;
 const FACT_TOKENS = 200;
 const RECENT_TOKENS = 600;
 
-// 锚定复核问的是"有没有具体到那件事"：汉字连续重合 ≥3，或共用一个 4 字母以上的实词。
-// 要求原样复述整句会让真实模型永远不通过——中文长句没有可切分的标点，英文事件也常配中文回复。
 const MIN_SHARED_HAN = 3;
 const MIN_SHARED_WORD = 4;
 const LATIN_WORD = new RegExp(`\\p{Script=Latin}{${MIN_SHARED_WORD},}`, 'gu');
 
-// 撞上虚词不算提到锚点。
 const LATIN_GENERIC_WORDS = new Set([
   'about', 'after', 'again', 'back', 'been', 'before', 'being', 'both', 'come', 'could',
   'does', 'down', 'each', 'even', 'ever', 'from', 'good', 'have', 'here', 'into', 'just',
@@ -71,14 +68,6 @@ function clipText(text, maxTokens) {
   return value.length <= maxChars ? value : value.slice(0, maxChars);
 }
 
-/**
- * 按上限裁掉一段消息；默认丢最旧的（数组头部），可改为丢尾部。
- * 单条仍超限时截断正文，保证这一段自己就不越界。
- *
- * @param {Array<{ role: string, content: string }>} messages
- * @param {number} maxTokens
- * @param {'front' | 'back'} [dropFrom]
- */
 function fitPart(messages, maxTokens, dropFrom = 'front') {
   const kept = messages.map((message) => ({ ...message }));
   while (kept.length > 0 && totalTokens(kept) > maxTokens) {
@@ -132,12 +121,6 @@ function latinWords(text) {
     .filter((word) => !LATIN_GENERIC_WORDS.has(word));
 }
 
-/**
- * 正文是否真的提到了锚点里的具体东西：一段连续汉字，或一个实词。
- *
- * @param {string} body
- * @param {string} source
- */
 function sharesSpecificPhrase(body, source) {
   const sourceRuns = hanRuns(source);
   const bodyRuns = hanRuns(body);
@@ -208,22 +191,6 @@ function parseJsonResponse(text) {
   }
 }
 
-/**
- * 主动消息：锚点、上下文硬闸、生成校验与预算闸门。
- *
- * 调度只负责“到点调用”，本模块负责“她有没有资格说、说什么、说完怎么结算”。
- *
- * @param {{
- *   store: object,
- *   clock: import('../clock/index.js').Clock,
- *   config: object,
- *   llm: object,
- *   style: object,
- *   quota: object,
- *   bus: object,
- *   log?: object,
- * }} options
- */
 export function createProactive({ store, clock, config, llm, style, quota, bus, log }) {
   function requireSession(sessionId) {
     const id = Number(sessionId);
@@ -242,11 +209,6 @@ export function createProactive({ store, clock, config, llm, style, quota, bus, 
     return { ok: false, reason };
   }
 
-  /**
-   * 全局 5 / 单角色 2 的每日闸门。只读计数行，不创建日期行。
-   *
-   * @param {number} sessionId
-   */
   function gate(sessionId) {
     const session = requireSession(sessionId);
     const day = clock.localDay();
@@ -282,11 +244,6 @@ export function createProactive({ store, clock, config, llm, style, quota, bus, 
     };
   }
 
-  /**
-   * 有序候选：今日未用事件在前（ordinal 正序），pending facts 在后（valid_from 倒序），截断 5 条。
-   *
-   * @param {number} sessionId
-   */
   function buildAnchors(sessionId) {
     const session = requireSession(sessionId);
     const day = clock.localDay();
@@ -336,14 +293,6 @@ export function createProactive({ store, clock, config, llm, style, quota, bus, 
     return profile === '' ? head : `${head}\n\n角色资料：\n${profile}`;
   }
 
-  /**
-   * 主动消息上下文：六项分配 + 总量硬闸。
-   * 超限顺序：最旧原文 → facts → 多余事件 → 最旧摘要；最后仍超就截断人设。
-   *
-   * @param {number} sessionId
-   * @param {Array<object>} [anchors]
-   * @param {{ guidance?: 'step_down' | 'tired' | null }} [options]
-   */
   function buildContext(sessionId, anchors = buildAnchors(sessionId), { guidance = null } = {}) {
     const session = requireSession(sessionId);
     if (!session.character_id) {
@@ -400,8 +349,6 @@ export function createProactive({ store, clock, config, llm, style, quota, bus, 
     const guidanceMessage = guidance && GUIDANCE[guidance]
       ? { role: 'system', content: GUIDANCE[guidance] }
       : null;
-    // 人设必须以消息对象进上下文：裸字符串会被下面的 `.role` 读成 undefined，
-    // 真实端点随即以 missing `messages.role` 返回 400，主动消息从此永不成功。
     const assemble = () => [
       { role: 'system', content: system },
       ...(guidanceMessage ? [guidanceMessage] : []),
@@ -439,7 +386,6 @@ export function createProactive({ store, clock, config, llm, style, quota, bus, 
       messages = assemble();
     }
     if (totalTokens(messages) > budget) {
-      // 硬闸兜底：只留截断后的人设；人设都放不下时留一句截断的提醒。
       log?.warn('proactive_context_truncated', {
         session_id: session.id,
         budget,
@@ -473,11 +419,6 @@ export function createProactive({ store, clock, config, llm, style, quota, bus, 
     return { text, usage };
   }
 
-  /**
-   * 生成结果先过风格与长度，再交给锚点复核。
-   *
-   * @param {unknown} rawBubbles
-   */
   function processBubbles(rawBubbles) {
     const list = Array.isArray(rawBubbles)
       ? rawBubbles
@@ -524,13 +465,6 @@ export function createProactive({ store, clock, config, llm, style, quota, bus, 
     return { ok: true, bubbles };
   }
 
-  /**
-   * 三条全过才算锚定成功：id 在集合内、type 与来源一致、正文提到锚点里的具体东西。
-   * 事件按连续重合片段判，事实按 `value` / `key` 原文判。
-   *
-   * @param {{ bubbles?: string[], anchor?: { type?: string, id?: number } }} resp
-   * @param {Array<object>} anchors
-   */
   function validate(resp, anchors) {
     const body = Array.isArray(resp?.bubbles) ? resp.bubbles.join('') : '';
     const raw = resp?.anchor;
@@ -555,13 +489,6 @@ export function createProactive({ store, clock, config, llm, style, quota, bus, 
     return { ok: true, reason: null, anchor: { type, id } };
   }
 
-  /**
-   * 生成 + 校验。失败返回 `{ ok:false, reason }`，不抛给调度。
-   *
-   * @param {number} sessionId
-   * @param {Array<object>} [anchors]
-   * @param {{ guidance?: 'step_down' | 'tired' | null }} [options]
-   */
   async function generate(sessionId, anchors, { guidance = null } = {}) {
     const session = requireSession(sessionId);
     if (session.state !== 'active') {
@@ -645,13 +572,6 @@ export function createProactive({ store, clock, config, llm, style, quota, bus, 
     return drop(session.id, lastReason ?? 'llm_error');
   }
 
-  /**
-   * 提交前复检状态、抢话与预算；所有写入在一个事务里。
-   *
-   * @param {number} sessionId
-   * @param {{ bubbles: string[], tokens: number, estimated?: boolean, observedUserMsgAt?: string | null, styleFlags?: object }} msg
-   * @param {{ type: 'event' | 'fact', id: number }} anchor
-   */
   function commit(sessionId, msg, anchor) {
     const session = requireSession(sessionId);
     const bubbles = Array.isArray(msg?.bubbles)

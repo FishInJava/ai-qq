@@ -88,7 +88,6 @@ test('主动消息带 role、两卡不串台、多气泡同属一次生成', asy
   await withApp(async (app) => {
     const imported = await importCard(app, '主动甲');
     const started = await startCard(app, imported.card.id);
-    // 生活事件是异步补的；先读一次「她的今天」把当日事件生成出来，锚点才存在。
     await fetch(`${app.baseUrl}/api/sessions/${started.session.id}/today`);
 
     const result = await tick(app, started.session.id);
@@ -104,7 +103,6 @@ test('主动消息带 role、两卡不串台、多气泡同属一次生成', asy
     }
     assert.equal(request.messages[0].role, 'system');
     assert.equal(request.messages.at(-1).role, 'user');
-    // 人设必须在场：裸字符串会被过滤掉，主动消息就会退化成没有角色的泛泛问候。
     assert.match(request.messages[0].content, /主动开口的规矩/);
     assert.match(request.messages[0].content, /主动甲/);
 
@@ -129,7 +127,6 @@ test('主动消息带 role、两卡不串台、多气泡同属一次生成', asy
     );
     assert.ok(firstHistory.messages.every((message) => message.session_id === undefined || message.session_id === firstSession));
 
-    // 换成长回复模型：设置保存后立即生效，不用重启进程。
     const switched = await fetch(`${app.baseUrl}/api/config`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -149,8 +146,6 @@ test('主动消息带 role、两卡不串台、多气泡同属一次生成', asy
     assert.match(page, /function groupMessages/);
     assert.match(page, /msg--group/);
 
-    // 多条气泡必须纵向排列：.msg 是 flex 行容器，缺了 .msg__bubbles 的
-    // flex-direction:column，一次回复的多条气泡就会挤在同一行（回归 bug）。
     const css = await (await fetch(`${app.baseUrl}/styles.css`)).text();
     assert.match(css, /\.msg__bubbles\s*\{[^}]*flex-direction:\s*column/s);
   });

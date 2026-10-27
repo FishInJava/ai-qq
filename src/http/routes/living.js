@@ -9,10 +9,6 @@ function idOf(value) {
   return id;
 }
 
-/**
- * @param {ReturnType<import('../router.js').createRouter>} router
- * @param {{ living: object }} services
- */
 export function registerLivingRoutes(router, { living }) {
   router.add('GET', '/api/sessions/:id/today', async ({ res, params }) => {
     const page = await living.today(idOf(params.id));

@@ -1,5 +1,3 @@
-// 出货那半段：commit message 怎么拼、PR 标题怎么起。
-// 单独一层，是为了 gate.js 里只剩"流程 + 打印"，别让模板字符串埋掉阶段顺序。
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -13,7 +11,6 @@ export function inferType(branch) {
   return 'chore';
 }
 
-/** scope 取改动最集中的那一层：`src/<模块>` 优先，其次 web/test/tools/docs。 */
 export function inferScope(files) {
   const counts = new Map();
   for (const file of files) {
@@ -31,10 +28,6 @@ function loadBody(body, bodyFile) {
   return readTextFile(bodyFile);
 }
 
-/**
- * 票通道：标题取票标题，正文带票路径 + 改动面 + 门禁结果。
- * bug 通道：四段正文是硬要求（Workflow §9.1），缺了直接抛，不替人编。
- */
 export function buildCommitMessage({ branch, files, ticket, ticketPath, gate, type, scope, subject, body, bodyFile }) {
   const commitType = type ?? inferType(branch);
   const commitScope = scope ?? inferScope(files);
@@ -67,7 +60,6 @@ export function buildCommitMessage({ branch, files, ticket, ticketPath, gate, ty
   return `${lines.join('\n')}\n`;
 }
 
-/** 返回 { title, body }。三条通道都先说人话（这改了什么 / 怎么验的 / 会影响谁），再挂清单。 */
 export function buildPrBody({ branch, files, changes, gate, consent, ticket, ticketPath, commits, commitBody, number }) {
   const shared = { files, changes, gate };
   if (number) {

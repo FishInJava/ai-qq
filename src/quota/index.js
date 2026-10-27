@@ -10,23 +10,7 @@ function statusOf({ warn, exhausted }) {
   return warn ? 'warn70' : 'ok';
 }
 
-/**
- * 额度模块：主动预算、对话 token 账本、续额与用量聚合。
- * `evaluate` / `usage` 只读；`record` / `raiseLimit` 只写账本，不改会话状态。
- *
- * @param {{
- *   store: object,
- *   clock: import('../clock/index.js').Clock,
- *   config: object,
- * }} options
- */
 export function createQuota({ store, clock, config }) {
-  /**
-   * 全局预算与单角色预算取小；已用超出时归零。
-   *
-   * @param {number} sessionId
-   * @returns {number}
-   */
   function remainingToday(sessionId) {
     const day = clock.localDay();
     const globalRemaining = Math.max(
@@ -48,17 +32,6 @@ export function createQuota({ store, clock, config }) {
     return session;
   }
 
-  /**
-   * @param {number} sessionId
-   * @returns {{
-   *   used: number,
-   *   limit: number,
-   *   ratio: number,
-   *   warn: boolean,
-   *   exhausted: boolean,
-   *   status: 'ok' | 'warn70' | 'exhausted',
-   * }}
-   */
   function evaluate(sessionId) {
     const session = requireSession(sessionId);
     const limit = Math.max(1, Number(session.token_limit));
@@ -76,15 +49,6 @@ export function createQuota({ store, clock, config }) {
     };
   }
 
-  /**
-   * 记一笔用量。调用方可以把它包在自己的 `store.tx()` 里（本函数不另开事务）。
-   * `warnFirst` 只在首次跨过 70% 时为真，用来保证 `quota` 事件只发一次。
-   *
-   * @param {number} sessionId
-   * @param {'chat' | 'proactive' | 'refill'} kind
-   * @param {number} amount
-   * @param {{ estimated?: number, refType?: string | null, refId?: number | null }} [options]
-   */
   function record(sessionId, kind, amount, { estimated = 0, refType = null, refId = null } = {}) {
     const before = requireSession(sessionId);
 
@@ -110,12 +74,6 @@ export function createQuota({ store, clock, config }) {
     return { ...quota, warnFirst };
   }
 
-  /**
-   * 续额只抬高上限，不复位已用；写一条 refill 流水，金额是本次提高的上限。
-   *
-   * @param {number} sessionId
-   * @param {number} amount
-   */
   function raiseLimit(sessionId, amount) {
     const session = requireSession(sessionId);
     const value = Number(amount);
@@ -141,10 +99,6 @@ export function createQuota({ store, clock, config }) {
     return evaluate(session.id);
   }
 
-  /**
-   * @param {string | null | undefined} value
-   * @param {string} fallback
-   */
   function parseDay(value, fallback) {
     if (value === null || value === undefined || value === '') {
       return fallback;
@@ -158,11 +112,6 @@ export function createQuota({ store, clock, config }) {
     return value;
   }
 
-  /**
-   * 用量抽屉：按本地日聚合 + 流水明细 + 当前每个会话的额度头。
-   *
-   * @param {{ from?: string, to?: string }} [options]
-   */
   function usage({ from, to } = {}) {
     const today = clock.localDay();
     const startDay = parseDay(from, today);

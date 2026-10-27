@@ -1,6 +1,3 @@
-// gate 自身的用例：规则是不是真能命中、是不是会误伤。
-// 为什么放在 tools 里而不是 test/：test/ 是产品三个缝（S1/S2/S3，ADR-0004），
-// 把工具的自检塞进去会把"缝"的含义搞糊。这里用 node --test 跑同一个文件即可。
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
@@ -13,8 +10,6 @@ import { parseFixBody } from './prbody.js';
 
 const ids = (findings) => findings.map((finding) => finding.id);
 
-// 样本里不能出现真的密钥形态与空 catch 字面量，否则 gate 扫自己会误报。
-// 拼接出来的字符串在运行时和字面量一样，源码文本却躲开了正则。
 const FAKE_SECRET = `sk-${'a'.repeat(24)}`;
 const FAKE_PLACEHOLDER = `sk-${'x'.repeat(24)}`;
 const EMPTY_CATCH_SAMPLE = `try { a(); } catch (error) {${'}'}`;

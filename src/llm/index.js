@@ -94,18 +94,7 @@ function timeoutError(cause) {
   });
 }
 
-/**
- * 单一 OpenAI 兼容端点。没有降级通道、没有第二供应商。
- *
- * @param {{
- *   config: object,
- *   clock: import('../clock/index.js').Clock,
- *   log?: object,
- *   retryDelaysMs?: number[],
- * }} options
- */
 export function createLlm({ config, clock, log, retryDelaysMs = RETRY_DELAYS_MS }) {
-  // 每次调用都读当前配置：设置页保存后会整体替换 `config.llm`，抓引用会拿到旧对象。
   const llmConfig = () => config.llm ?? {};
 
   function wait(ms) {
@@ -123,7 +112,6 @@ export function createLlm({ config, clock, log, retryDelaysMs = RETRY_DELAYS_MS 
     jsonMode,
   }) {
     const settings = llmConfig();
-    // 配置错误要在建定时器与发请求之前暴露，不能被下面的网络错误兜底吞掉。
     const endpoint = endpointOf(settings);
 
     const controller = new AbortController();
@@ -250,12 +238,6 @@ export function createLlm({ config, clock, log, retryDelaysMs = RETRY_DELAYS_MS 
     };
   }
 
-  /**
-   * 流式对话。逐段产出 `{delta}`，最后产出 `{usage}` 与 `{done:true}`。
-   * `jsonMode` 只给主动消息用：仍然流式，但要求端点返回 JSON 对象。
-   *
-   * @param {{ messages: object[], maxTokens?: number, timeoutMs?: number, jsonMode?: boolean }} options
-   */
   async function* chatStream({ messages, maxTokens, timeoutMs, jsonMode = false }) {
     const settings = llmConfig();
     const model = modelOf(settings, 'chat');
@@ -329,8 +311,8 @@ export function createLlm({ config, clock, log, retryDelaysMs = RETRY_DELAYS_MS 
       clear();
       try {
         reader.releaseLock();
-      } catch {
-        // 流已经关闭时释放锁会抛错，忽略。
+      } catch (error) {
+        void error;
       }
     }
 
@@ -374,17 +356,6 @@ export function createLlm({ config, clock, log, retryDelaysMs = RETRY_DELAYS_MS 
     }
   }
 
-  /**
-   * 强制 JSON 并做最小 schema 校验；用于事实抽取等工具调用。
-   *
-   * @param {{
-   *   system: string,
-   *   user: string,
-   *   schema?: object,
-   *   timeoutMs?: number,
-   *   retry?: boolean,
-   * }} options
-   */
   async function json({ system, user, schema, timeoutMs, retry = true }) {
     const result = await chatOnce({
       messages: [

@@ -2,20 +2,6 @@ import { mkdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { AppError } from '../errors.js';
 
-/**
- * 托盘辅助进程用的管理动作：暂停全部、清空数据、退出。
- * 页面不暴露入口，HTTP 层另做同源校验。
- *
- * @param {{
- *   store: object,
- *   clock: import('../clock/index.js').Clock,
- *   session: object,
- *   bus: object,
- *   dataDir: string,
- *   log?: object,
- *   onQuit: () => void | Promise<void>,
- * }} options
- */
 export function createAdminService({
   store,
   clock,
@@ -33,9 +19,6 @@ export function createAdminService({
     return { paused: count };
   }
 
-  /**
-   * 先 VACUUM INTO 备份，成功后才清空；备份失败整体失败，不动数据。
-   */
   function purge() {
     const stamp = clock.iso().replaceAll(':', '-').replaceAll('.', '-');
     const backupName = `companion.backup-${stamp}.db`;
@@ -81,7 +64,6 @@ export function createAdminService({
     }
     quitting = true;
     log?.info('admin_quit', {});
-    // 先让 HTTP 响应写回，再优雅停止；运行时目录与锁由 stop 清理。
     clock.setTimer(() => {
       void Promise.resolve(onQuit()).catch((err) => {
         log?.warn('admin_quit_failed', { message: err?.message ?? String(err) });

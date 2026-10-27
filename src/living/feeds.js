@@ -2,7 +2,6 @@ const KIND_TIMEOUT_MS = 8000;
 const USER_AGENT = 'proactive-companion/0.1 (local; +https://localhost)';
 const MAX_NEWS_CHARS = 120;
 
-/** 时区 → 城市：只在用户没填 `living.city` 时用，判不出来就跳过天气。 */
 const TIMEZONE_CITIES = Object.freeze({
   'Asia/Shanghai': '上海',
   'Asia/Chongqing': '重庆',
@@ -23,7 +22,6 @@ const TIMEZONE_CITIES = Object.freeze({
   'Australia/Sydney': '悉尼',
 });
 
-/** 常见城市的经纬度；配置里写了没收录的城市时再走一次地理编码。 */
 const CITY_COORDS = Object.freeze({
   上海: [31.2304, 121.4737],
   北京: [39.9042, 116.4074],
@@ -68,7 +66,6 @@ const CITY_COORDS = Object.freeze({
   悉尼: [-33.8688, 151.2093],
 });
 
-/** 公历节日：农历节日不猜，宁可今天没有节日素材。 */
 const SOLAR_HOLIDAYS = Object.freeze({
   '01-01': '元旦',
   '02-14': '情人节',
@@ -115,7 +112,6 @@ const WEATHER_TEXT = Object.freeze({
   99: '强雷阵雨伴冰雹',
 });
 
-/** 白名单新闻源：只取第一条标题 + 首句，不做站内搜索。 */
 const NEWS_FEEDS = Object.freeze([
   'https://rss.sina.com.cn/news/china/focus15.xml',
   'https://news.163.com/special/00011K6L/rss_newstop.xml',
@@ -162,17 +158,6 @@ function tagText(xml, tag) {
   return match ? decodeEntities(match[1]) : '';
 }
 
-/**
- * 只出网三次（天气 / 节日 / 头条），每次 8s 上限；失败静默返回 null。
- *
- * @param {{
- *   store: object,
- *   clock: import('../clock/index.js').Clock,
- *   config: object,
- *   log?: object,
- *   fetchImpl?: typeof fetch,
- * }} options
- */
 export function createFeeds({ store, clock, config, log, fetchImpl = globalThis.fetch }) {
   async function fetchText(url, timeoutMs = KIND_TIMEOUT_MS) {
     const controller = new AbortController();
@@ -255,18 +240,12 @@ export function createFeeds({ store, clock, config, log, fetchImpl = globalThis.
           : `头条：${title}。${summary}`;
         return { kind: 'news', content: content.slice(0, MAX_NEWS_CHARS) };
       } catch {
-        // 换下一个源；全失败就当今天没有头条。
+        continue;
       }
     }
     return null;
   }
 
-  /**
-   * 当天三类素材各抓一次；已存在的类别不再抓（每日限次）。
-   * 单类失败只记日志，不拖垮其他类别。
-   *
-   * @param {string} day
-   */
   async function ensureDay(day) {
     const existing = store.worldFeeds.listForDay(day);
     const have = new Set(existing.map((row) => row.kind));

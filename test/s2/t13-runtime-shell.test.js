@@ -99,7 +99,8 @@ test('托盘与守护脚本包含打开页面、暂停、退出、42 退出码�
   assert.match(tray, /Start-Process/);
   assert.match(tray, /pause-all/);
   assert.match(tray, /quit/);
-  assert.match(tray, /runtime\.json/);
+  assert.match(tray, /\[string\]\$RuntimePath/);
+  assert.match(tray, /Get-Content -LiteralPath \$RuntimePath/);
 
   assert.match(supervisor, /src\/index\.js/);
   assert.match(supervisor, /\$code -ne 42/);

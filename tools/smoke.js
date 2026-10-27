@@ -19,8 +19,8 @@ async function waitForRuntime(dataDir, child, output) {
     if (existsSync(runtimePath)) {
       try {
         return JSON.parse(readFileSync(runtimePath, 'utf8'));
-      } catch {
-        // 文件正在写入，下一轮再读。
+      } catch (error) {
+        void error;
       }
     }
     if (child.exitCode !== null) {

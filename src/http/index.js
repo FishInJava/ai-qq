@@ -50,28 +50,6 @@ function safeStaticPath(pathname) {
   return candidate;
 }
 
-/**
- * 本地 HTTP 服务。只绑 127.0.0.1，校验 Host，页面与 API 共用同一个端口。
- *
- * @param {{
- *   config: object,
- *   clock: import('../clock/index.js').Clock,
- *   log: object,
- *   bus: object,
- *   version: string,
- *   startedAt: number,
- *   cards: object,
- *   library: object,
- *   session: object,
- *   chat: object,
- *   memory: object,
- *   living: object,
- *   schedule: object,
- *   quota: object,
- *   configService: object,
- *   admin: object,
- * }} options
- */
 export function createHttp({
   config,
   clock,

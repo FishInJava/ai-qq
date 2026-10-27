@@ -38,26 +38,6 @@ function hasBook(data) {
   return isPlainObject(data.character_book);
 }
 
-/**
- * 解析 V2 / V1 卡的展示字段。原始文本不在这里序列化，落库由 cards 负责。
- *
- * @param {string} jsonText
- * @returns {{
- *   compat: 'v1' | 'v2',
- *   name: string,
- *   description: string,
- *   tags: string[],
- *   personality: string,
- *   scenario: string,
- *   firstMes: string,
- *   mesExample: string,
- *   systemPrompt: string,
- *   postHistoryInstructions: string,
- *   extensionsJson: string | null,
- *   hasScripts: boolean,
- *   hasBook: boolean,
- * }}
- */
 export function parseCardText(jsonText) {
   const text = jsonText.charCodeAt(0) === 0xfeff ? jsonText.slice(1) : jsonText;
   let parsed;

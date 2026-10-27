@@ -55,7 +55,7 @@
 | 只跑时间/调度 | `npm run test:s3` → `node --test test/s3/` |
 | 单文件 | `node --test test/s1/t05-anchor.test.js` |
 | 起假 LLM（人工联调） | `npm run fake-llm` → `node tools/fake-llm/server.js --port 4100` |
-| 静态自检（禁词/时间 API/依赖方向） | `npm run check` → `node tools/check.js` |
+| 静态自检（禁词/时间 API/依赖方向/注释） | `npm run check` → `node tools/check.js` |
 | 冒烟（起进程→/health→退出） | `npm run smoke` |
 | 重置本地数据 | `npm run db:reset`（备份后删库；**先确认人同意**） |
 | 崩溃节流守护（Windows） | `pwsh -File tools/run-companion.ps1` |
@@ -76,7 +76,8 @@
 10. **零新增依赖。** 任何第三方包（含 devDependency）都要先改 ADR-0002 并取得人同意。
 11. **密钥只回后四位。** 日志、事件、错误信息里永不出现 key 与卡片全文。
 12. **改对外契约（§6 表）要同时改 `web/`、`test/s1`，并先问人。**
-13. **`main` 只接受合并。** 一票一分支 `ticket-NN-<slug>`（新行为）或 `fix-<slug>`（bug），一票一 PR；代理**不许**自己 `gh pr merge`，也不许直推 `main`（例外：纯文档错别字，不碰 `src/`/`web/`/`test/`/`tools/` 任何可执行代码）。
+13. **`main` 只接受合并。** 代理**不许**自己 `gh pr merge`，也不许直推 `main`（例外：纯文档错别字，不碰 `src/`/`web/`/`test/`/`tools/` 任何可执行代码）。
+14. **不写任何注释。** `src/`/`web/`/`test/`/`tools/` 里的代码不允许出现注释（行注释、块注释、JSDoc 一律算）；解释只进 commit message、PR body 或票 Notes，`npm run check` 会拦。
 
 ## 5. 交付纪律
 

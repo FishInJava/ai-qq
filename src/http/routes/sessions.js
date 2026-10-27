@@ -12,10 +12,6 @@ function idOf(value) {
   return id;
 }
 
-/**
- * @param {ReturnType<import('../router.js').createRouter>} router
- * @param {{ session: object }} services
- */
 export function registerSessionRoutes(router, { session }) {
   router.add('PATCH', '/api/sessions/:id', async ({ req, res, params }) => {
     const id = idOf(params.id);

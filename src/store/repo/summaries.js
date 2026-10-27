@@ -1,12 +1,5 @@
 import { getHandle } from '../handle.js';
 
-/**
- * 最近几条摘要；调用方负责反转成时间正序。
- *
- * @param {object} store
- * @param {number} sessionId
- * @param {number} [limit=3]
- */
 export function listRecent(store, sessionId, limit = 3) {
   return getHandle(store)
     .prepare(`
@@ -18,10 +11,6 @@ export function listRecent(store, sessionId, limit = 3) {
     .all(sessionId, limit);
 }
 
-/**
- * @param {object} store
- * @param {number} sessionId
- */
 export function lastForSession(store, sessionId) {
   return getHandle(store)
     .prepare(`
@@ -33,12 +22,6 @@ export function lastForSession(store, sessionId) {
     .get(sessionId) ?? null;
 }
 
-/**
- * 记忆抽屉按时间正序展示。
- *
- * @param {object} store
- * @param {number} sessionId
- */
 export function listAll(store, sessionId) {
   return getHandle(store)
     .prepare(`
@@ -49,17 +32,6 @@ export function listAll(store, sessionId) {
     .all(sessionId);
 }
 
-/**
- * @param {object} store
- * @param {{
- *   sessionId: number,
- *   fromMsgId: number,
- *   toMsgId: number,
- *   content: string,
- *   createdAt: string,
- * }} summary
- * @returns {number}
- */
 export function insert(store, summary) {
   const result = getHandle(store)
     .prepare(`
@@ -76,12 +48,6 @@ export function insert(store, summary) {
   return Number(result.lastInsertRowid);
 }
 
-/**
- * @param {object} store
- * @param {number} sessionId
- * @param {string} pattern
- * @param {number} limit
- */
 export function search(store, sessionId, pattern, limit) {
   return getHandle(store)
     .prepare(`

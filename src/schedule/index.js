@@ -10,11 +10,6 @@ function clamp01(value) {
   return Math.min(1, Math.max(0, value));
 }
 
-/**
- * 15 分钟 → 0，6 小时 → 1，线性。
- *
- * @param {number} minutes
- */
 function silenceCurve(minutes) {
   if (!Number.isFinite(minutes)) {
     return 1;
@@ -22,11 +17,6 @@ function silenceCurve(minutes) {
   return clamp01((minutes - 15) / (360 - 15));
 }
 
-/**
- * 08–23 为 1；23 点后线性下降，凌晨 2 点到 0，直到早上 8 点。
- *
- * @param {number} minutes 本地分钟数
- */
 function timeOfDayFit(minutes) {
   if (minutes >= 8 * 60 && minutes < 23 * 60) {
     return 1;
@@ -60,22 +50,6 @@ function minutesSince(iso, now) {
   return Math.max(0, (now - at) / MINUTE_MS);
 }
 
-/**
- * 调度：唯一 tick 实现。剪枝顺序、意愿公式与硬触发都集中在这里，
- * 定时器只负责“到点调用 runTick”，测试用 manual 触发同一个函数。
- *
- * @param {{
- *   store: object,
- *   clock: import('../clock/index.js').Clock,
- *   config: object,
- *   proactive: object,
- *   living?: object,
- *   session?: object,
- *   bus: object,
- *   log?: object,
- *   random?: () => number,
- * }} options
- */
 export function createSchedule({
   store,
   clock,
@@ -110,12 +84,6 @@ export function createSchedule({
     return minutesSince(session.last_user_msg_at ?? session.created_at, clock.now());
   }
 
-  /**
-   * 规则式意愿，不调模型。形状见 spec D-3。
-   *
-   * @param {object} session
-   * @param {string} day
-   */
   function computeWillingness(session, day) {
     const minutes = minutesSinceUser(session);
     const pendingFact = store.facts.listPending(session.id, 1).length > 0 ? 1 : 0;
@@ -137,11 +105,6 @@ export function createSchedule({
     );
   }
 
-  /**
-   * 下次抖动 tick：20–40 分钟；连续被忽略 ≥3 次时 ×1.5。
-   *
-   * @param {object} session
-   */
   function nextTickAt(session) {
     const min = Math.max(1, Number(config.schedule.tick_min) || 20);
     const max = Math.max(min, Number(config.schedule.tick_max) || 40);
@@ -162,14 +125,6 @@ export function createSchedule({
     return null;
   }
 
-  /**
-   * 单次 tick：剪枝 → 锚点 → 意愿 → 生成 → 复核 → 提交。
-   * 每个分支都写一行 scheduler_state，并广播 tick。
-   *
-   * @param {number} sessionId
-   * @param {'timer' | 'hard' | 'manual'} [trigger]
-   * @returns {Promise<object>}
-   */
   async function runTick(sessionId, trigger = 'manual') {
     const session = requireSession(sessionId);
     if (!TRIGGERS.has(trigger)) {
@@ -308,12 +263,6 @@ export function createSchedule({
     }
   }
 
-  /**
-   * 抽屉“调度”页签：最近 20 次 tick。
-   *
-   * @param {number} sessionId
-   * @param {number} [limit]
-   */
   function ticks(sessionId, limit = MAX_TICK_ROWS) {
     const session = requireSession(sessionId);
     const requested = Number(limit);
@@ -323,11 +272,6 @@ export function createSchedule({
     return store.schedulerState.listRecent(session.id, safeLimit);
   }
 
-  /**
-   * 只读意愿值，供测试与抽屉排查；生产决策仍在 runTick 内。
-   *
-   * @param {number} sessionId
-   */
   function willingness(sessionId) {
     const session = requireSession(sessionId);
     return computeWillingness(session, clock.localDay());
@@ -431,10 +375,6 @@ export function createSchedule({
     armDaily();
   }
 
-  /**
-   * 启动补齐：当日 feeds + 已开始会话的生活事件，幂等，不补历史。
-   * 不阻塞 HTTP 启动。
-   */
   async function catchUp() {
     if (!living || typeof living.ensureAll !== 'function') {
       return;
@@ -448,9 +388,6 @@ export function createSchedule({
     }
   }
 
-  /**
-   * 生产定时器宿主。测试不启动；测试用 runTick 直接触发。
-   */
   function start() {
     if (started) {
       return;
@@ -458,7 +395,6 @@ export function createSchedule({
     started = true;
 
     if (config.runtime?.cold_start_proactive !== true) {
-      // 只沉默从未对话的新会话；同时清掉旧版本残留在已聊会话上的沉默位。
       store.sessions.reconcileColdStart();
     }
 
