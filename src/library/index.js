@@ -11,14 +11,6 @@ function summarize(text) {
   return compact.length > 60 ? `${compact.slice(0, 60)}…` : compact;
 }
 
-/**
- * 角色库只组装视图，不写库；状态词与额度分别来自 session / quota。
- *
- * @param {{
- *   store: object,
- *   quota: { remainingToday: (sessionId: number) => number },
- * }} options
- */
 export function createLibrary({ store, quota }) {
   function list({ q = '' } = {}) {
     const query = typeof q === 'string' ? q.trim() : '';

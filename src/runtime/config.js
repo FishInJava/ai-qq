@@ -2,8 +2,6 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import path from 'node:path';
 import { AppError } from '../errors.js';
 
-/** @typedef {typeof DEFAULT_CONFIG} CompanionConfig */
-
 export const DEFAULT_CONFIG = Object.freeze({
   server: { port: 3000, host: '127.0.0.1' },
   llm: {
@@ -60,12 +58,6 @@ function validateConfig(config) {
   }
 }
 
-/**
- * 首次启动生成配置；已有配置只补默认值，不删除未知字段。
- *
- * @param {{ dataDir: string }} options
- * @returns {{ config: CompanionConfig, configPath: string }}
- */
 export function loadConfig({ dataDir }) {
   mkdirSync(dataDir, { recursive: true });
   const configPath = path.join(dataDir, 'config.json');
@@ -92,19 +84,12 @@ export function loadConfig({ dataDir }) {
   return { config, configPath };
 }
 
-/**
- * 先写临时文件再替换；Windows 下 rename 覆盖已存在文件会失败，退回直接写。
- *
- * @param {string} target
- * @param {unknown} value
- */
 export function writeJsonAtomic(target, value) {
   const tmp = `${target}.tmp-${process.pid}`;
   writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
   try {
     renameSync(tmp, target);
   } catch {
-    // Windows 下目标已存在时 rename 会失败；直接覆盖并清理临时文件。
     writeFileSync(target, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
     rmSync(tmp, { force: true });
   }
@@ -165,11 +150,6 @@ function assertHhmm(value, name) {
   }
 }
 
-/**
- * PUT /api/config 的字段级校验；失败一律 400，不写盘。
- *
- * @param {object} config
- */
 function validateUpdate(config) {
   if (config.server.host !== '127.0.0.1') {
     throw invalid('服务只能监听 127.0.0.1');
@@ -211,11 +191,6 @@ function validateUpdate(config) {
   assertBoolean(config.runtime.test_hooks, 'runtime.test_hooks');
 }
 
-/**
- * 配置读写服务：GET 只给脱敏视图，PUT 只接受已知字段并原子落盘。
- *
- * @param {{ config: object, configPath: string, log?: object }} options
- */
 export function createConfigService({ config, configPath, log }) {
   function view() {
     const snapshot = structuredClone(config);

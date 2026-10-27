@@ -3,10 +3,6 @@ import { readJson, sendJson } from '../respond.js';
 
 const BODY_LIMIT = 64 * 1024;
 
-/**
- * @param {ReturnType<import('../router.js').createRouter>} router
- * @param {{ configService: object }} services
- */
 export function registerConfigRoutes(router, { configService }) {
   router.add('GET', '/api/config', ({ res }) => {
     sendJson(res, 200, { config: configService.view() });

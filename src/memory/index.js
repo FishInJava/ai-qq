@@ -81,16 +81,6 @@ function normalizeFact(raw) {
   return { subject, key, value };
 }
 
-/**
- * 记忆是尽力而为：所有失败只记日志，不把异常抛回对话。
- *
- * @param {{
- *   store: object,
- *   clock: import('../clock/index.js').Clock,
- *   llm: object,
- *   log?: object,
- * }} options
- */
 export function createMemory({ store, clock, llm, log }) {
   const extracting = new Set();
   const summarizing = new Set();
@@ -107,12 +97,6 @@ export function createMemory({ store, clock, llm, log }) {
     return id;
   }
 
-  /**
-   * 一轮结束后异步抽取事实；同一会话同时只跑一个抽取，避免写重。
-   *
-   * @param {number} sessionId
-   * @param {number[]} msgIds
-   */
   async function extract(sessionId, msgIds) {
     const id = Number(sessionId);
     if (!Number.isInteger(id) || id <= 0 || extracting.has(id)) {
@@ -202,11 +186,6 @@ export function createMemory({ store, clock, llm, log }) {
     }
   }
 
-  /**
-   * 每满 20 个用户轮次生成一条摘要；同一会话同时只跑一个摘要。
-   *
-   * @param {number} sessionId
-   */
   async function summarize(sessionId) {
     const id = Number(sessionId);
     if (!Number.isInteger(id) || id <= 0 || summarizing.has(id)) {
@@ -280,9 +259,6 @@ export function createMemory({ store, clock, llm, log }) {
     }
   }
 
-  /**
-   * @param {number} sessionId
-   */
   function list(sessionId) {
     const id = requireSession(sessionId);
     return {
@@ -291,10 +267,6 @@ export function createMemory({ store, clock, llm, log }) {
     };
   }
 
-  /**
-   * @param {number} id
-   * @returns {boolean} 是否真的删掉了一行
-   */
   function removeFact(id) {
     const factId = Number(id);
     if (!Number.isInteger(factId) || factId <= 0) {
@@ -303,13 +275,6 @@ export function createMemory({ store, clock, llm, log }) {
     return store.facts.remove(factId) > 0;
   }
 
-  /**
-   * 关键词检索包含过期事实，用于“翻旧账”；不向量化。
-   *
-   * @param {number} sessionId
-   * @param {string} query
-   * @param {number} [limit=5]
-   */
   function search(sessionId, query, limit = DEFAULT_SEARCH_LIMIT) {
     const id = requireSession(sessionId);
     const text = typeof query === 'string' ? query.trim() : '';

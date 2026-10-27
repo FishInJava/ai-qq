@@ -1,21 +1,5 @@
 import { getHandle } from '../handle.js';
 
-/**
- * 每次 tick 都留一行：决策、原因、意愿、触发源与下次时间。
- * 抽屉的“调度”页签只读这张表，不从日志反推。
- *
- * @param {object} store
- * @param {{
- *   sessionId: number,
- *   trigger: 'timer' | 'hard' | 'manual',
- *   decision: 'skip' | 'send',
- *   decisionReason: string,
- *   willingness: number | null,
- *   nextTickAt: string | null,
- *   createdAt: string,
- * }} entry
- * @returns {number}
- */
 export function insert(store, entry) {
   const result = getHandle(store)
     .prepare(`
@@ -35,11 +19,6 @@ export function insert(store, entry) {
   return Number(result.lastInsertRowid);
 }
 
-/**
- * @param {object} store
- * @param {number} sessionId
- * @param {number} [limit=20]
- */
 export function listRecent(store, sessionId, limit = 20) {
   return getHandle(store)
     .prepare(`
@@ -51,13 +30,6 @@ export function listRecent(store, sessionId, limit = 20) {
     .all(sessionId, limit);
 }
 
-/**
- * 高 tick 日判断只数本本地日内的行。
- *
- * @param {object} store
- * @param {number} sessionId
- * @param {string} sinceIso
- */
 export function countSince(store, sessionId, sinceIso) {
   const row = getHandle(store)
     .prepare(`

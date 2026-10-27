@@ -1,8 +1,3 @@
-/**
- * 把一段 SSE 文本帧解析成 `{ event, data }`；注释帧返回 null。
- *
- * @param {string} frame
- */
 export function parseSseFrame(frame) {
   let event = 'message';
   const dataLines = [];
@@ -27,12 +22,6 @@ export function parseSseFrame(frame) {
   }
 }
 
-/**
- * 逐帧读取 SSE，直到 `until` 命中或流结束；传 `signal` 时可在外部中止。
- *
- * @param {Response} response
- * @param {{ until?: (event: { event: string, data: any }) => boolean, signal?: AbortSignal }} [options]
- */
 export async function readSseEvents(response, { until = null, signal = null } = {}) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -72,8 +61,8 @@ export async function readSseEvents(response, { until = null, signal = null } = 
   } finally {
     try {
       await reader.cancel();
-    } catch {
-      // 流已经关闭或被中止。
+    } catch (error) {
+      void error;
     }
   }
 }

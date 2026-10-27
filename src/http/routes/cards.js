@@ -30,14 +30,6 @@ function contentDisposition(filename, id, format) {
   return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
 }
 
-/**
- * @param {ReturnType<import('../router.js').createRouter>} router
- * @param {{
- *   cards: object,
- *   library: object,
- *   session: object,
- * }} services
- */
 export function registerCardRoutes(router, { cards, library, session }) {
   router.add('GET', '/api/cards', ({ res, url }) => {
     sendJson(res, 200, library.list({ q: url.searchParams.get('q') ?? '' }));

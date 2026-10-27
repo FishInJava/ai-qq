@@ -100,18 +100,6 @@ function normalizeEvents(raw) {
   return events;
 }
 
-/**
- * 生活事件 + 世界信息。所有网络与模型失败都只记日志：
- * 今天没有素材，她也可以只靠人设和历史事实开口。
- *
- * @param {{
- *   store: object,
- *   clock: import('../clock/index.js').Clock,
- *   llm: object,
- *   feeds: { ensureDay: (day: string) => Promise<object[]> },
- *   log?: object,
- * }} options
- */
 export function createLiving({ store, clock, llm, feeds, log }) {
   const generating = new Set();
 
@@ -190,12 +178,6 @@ export function createLiving({ store, clock, llm, feeds, log }) {
     return events.slice(0, MAX_EVENTS);
   }
 
-  /**
-   * 幂等：当日已有 ≥1 条事件就原样返回，不再调模型。
-   *
-   * @param {number} sessionId
-   * @returns {Promise<object[]>}
-   */
   async function ensureToday(sessionId) {
     const id = requireSessionId(store, sessionId);
     const day = clock.localDay();
@@ -246,10 +228,6 @@ export function createLiving({ store, clock, llm, feeds, log }) {
     }
   }
 
-  /**
-   * 只补当日 feeds；08:30 的定时器调用它。
-   * 失败只记日志，今天的她仍然可以只靠人设和记忆过日子。
-   */
   async function ensureFeeds() {
     try {
       await feeds.ensureDay(clock.localDay());
@@ -260,10 +238,6 @@ export function createLiving({ store, clock, llm, feeds, log }) {
     }
   }
 
-  /**
-   * 只补当日生活事件；09:00 的定时器调用它。
-   * 已开始的会话才补，unstarted 不生成。
-   */
   async function ensureEvents() {
     for (const session of store.sessions.listAll()) {
       if (session.state === 'unstarted') {
@@ -280,21 +254,11 @@ export function createLiving({ store, clock, llm, feeds, log }) {
     }
   }
 
-  /**
-   * 启动补齐：先补当日 feeds，再给每个已开始的会话补生活事件。
-   * 不补历史，只补今天；任何一步失败都只记日志。
-   */
   async function ensureAll() {
     await ensureFeeds();
     await ensureEvents();
   }
 
-  /**
-   * 读“她的今天”；当日事件还没生成时顺手补齐（幂等）。
-   * feeds 的每日抓取由调度器在 08:30 触发，这里只读已抓到的素材。
-   *
-   * @param {number} sessionId
-   */
   async function today(sessionId) {
     const id = requireSessionId(store, sessionId);
     await ensureToday(id);

@@ -72,9 +72,9 @@ bus     ──> 无
 
 - 文件命名 `kebab-case.js`；导出用命名导出（`export function`/`export const`），默认导仅用于模块工厂（如 `createLlm`）。
 - 一个文件一个职责，超过 ~300 行先想是不是两个模块。
-- 函数参数超过 3 个用对象；所有公开函数在 JSDoc 里写清入参、返回、抛错码。
+- 函数参数超过 3 个用对象；公开函数的入参、返回、抛错码靠签名与命名表达，不写 JSDoc。
 - 纯函数优先：能不在函数里读写外部状态的，就别读。副作用集中在 `store`/`llm`/`http`/`clock` 调用点。
-- 注释写"为什么"，不写"做了什么"；中文注释优先（领域词中文更准）。
+- **一律不写注释**：代码里不允许出现任何注释（行注释、块注释、JSDoc、HTML/CSS/SQL/PowerShell 注释）。要解释的写进 commit message、PR body 或票 Notes；`npm run check` 会拦。历史迁移 SQL 例外（§5「只追加、不改旧文件」）。
 - 时间一律 `clock.iso()`；金额/额度用整数；不做浮点累加。
 
 ### 3.2 错误
@@ -171,6 +171,7 @@ bus     ──> 无
 20. 在测试里 `sleep` 超过 2 秒或等真实 20 分钟。
 21. 改 `.github/workflows/ci.yml` 让红变绿（删步骤、加 `continue-on-error`、`|| true`、缩 matrix、改门禁命令）。
 22. 直推 `main`（纯文档错别字除外）或自己合并 PR。
+23. 在代码里写注释（含 JSDoc、行尾注释、块注释）；解释只进 commit message / PR body / 票 Notes。
 
 ---
 
@@ -202,7 +203,7 @@ bus     ──> 无
 2. **CI 在 `ubuntu-latest` 与 `windows-latest` 上都绿**（`.github/workflows/ci.yml`，跑 check → test → smoke）。本地绿但 CI 红，按红处理。
 3. 改动在 `ticket-NN-<slug>`（票）或 `fix-<slug>`（bug，见 `Workflow.md` §0 / `/fix-bug`）分支上，PR 已按对应模板填好（票用 `.github/pull_request_template.md`，bug 用五段短版）；**合并由人点**，代理不自己合。
 4. 新增文件在正确目录（ARCHITECTURE §3.2"不许放什么"）。
-5. 没有新增反向依赖边、没有裸时间 API、没有裸 SQL、没有 `console.*`。
+5. 没有新增反向依赖边、没有裸时间 API、没有裸 SQL、没有 `console.*`、没有注释。
 6. 碰了红线？（§7）碰了契约？（§6 表 / A2）
 7. 改动是否需要 §8 的同意？需要就先别合。
 8. 票：验收项全勾、`Status: done`、`## Notes` 写了偏差与遗留。bug 修复：无票，commit body 写清症状/根因/修法/验证，PR body 写清风险与回归面——两处缺一不可（bug 不许补票，票也不许跳过 Notes）。

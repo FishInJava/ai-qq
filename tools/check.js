@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { findComments, languageOf } from './comments.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
@@ -124,6 +125,17 @@ for (const file of testFiles) {
   const focusMatch = TEST_FOCUS.exec(text);
   if (focusMatch) {
     report(file, text, focusMatch.index, '禁止 skip/only');
+  }
+}
+
+for (const dir of ['src', 'web', 'test', 'tools']) {
+  for (const file of walk(path.join(ROOT, dir))) {
+    const language = languageOf(file);
+    if (!language || rel(file).startsWith('src/store/migrations/')) continue;
+    const text = readFileSync(file, 'utf8');
+    for (const comment of findComments(text, language)) {
+      report(file, text, comment.start, '代码里不允许写注释（Rule §3.1）');
+    }
   }
 }
 

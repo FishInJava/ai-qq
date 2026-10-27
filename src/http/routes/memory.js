@@ -9,10 +9,6 @@ function idOf(value, code, message) {
   return id;
 }
 
-/**
- * @param {ReturnType<import('../router.js').createRouter>} router
- * @param {{ memory: object }} services
- */
 export function registerMemoryRoutes(router, { memory }) {
   router.add('GET', '/api/sessions/:id/memory', ({ res, params }) => {
     const id = idOf(params.id, 'session_not_found', '没有找到这段会话');

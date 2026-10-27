@@ -159,6 +159,7 @@ git switch -c ticket-NN-<slug>
 ### 5.3 编码时的固定动作
 
 - 时间只问 `clock`；SQL 只进 `store`；错误只抛 `AppError`。
+- 不写注释：解释进 commit message / PR body / 票 Notes，`npm run check` 会拦（Rule §3.1）。
 - 动到红线（ARCHITECTURE §8）时，先看那张表的"唯一归属"，改归属模块，不要在下游打补丁。
 - 动到契约时，同一提交内改三处：`docs/ARCHITECTURE.md §6` + `web/` + `test/s1`，并确认已问过人（Rule §8-A2）。
 

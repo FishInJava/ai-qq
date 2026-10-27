@@ -84,18 +84,6 @@ function removeCreatedFiles(created, log) {
   }
 }
 
-/**
- * 卡片导入两段式：preview 只解析并发放 5 分钟一次性令牌；commit 才落库与写文件。
- *
- * @param {{
- *   store: object,
- *   clock: import('../clock/index.js').Clock,
- *   config: object,
- *   dataDir: string,
- *   bus: object,
- *   log?: object,
- * }} options
- */
 export function createCards({ store, clock, config, dataDir, bus, log }) {
   const pendingTokens = new Map();
 
@@ -315,12 +303,6 @@ export function createCards({ store, clock, config, dataDir, bus, log }) {
     return { filePath: absolute, contentType: 'image/png' };
   }
 
-  /**
-   * 卡名做文件名白名单化：任何用户输入都不直接拼进路径。
-   *
-   * @param {string} name
-   * @param {number} id
-   */
   function exportFilename(name, id) {
     const cleaned = String(name ?? '')
       .replace(/[\u0000-\u001f\u007f<>:"/\\|?*]/g, '_')
@@ -331,14 +313,6 @@ export function createCards({ store, clock, config, dataDir, bus, log }) {
     return cleaned === '' ? `card-${id}` : cleaned;
   }
 
-  /**
-   * JSON 直吐原始文本；PNG 复用原图字节，只重写 chara 块。
-   * JSON 导入的卡没有原图，用纯色占位图包住同一份原始文本。
-   *
-   * @param {number} characterId
-   * @param {string} format
-   * @returns {{ buffer: Buffer, contentType: string, filename: string }}
-   */
   function exportCard(characterId, format) {
     const card = store.characters.findById(characterId);
     if (!card) {
@@ -379,11 +353,6 @@ export function createCards({ store, clock, config, dataDir, bus, log }) {
     };
   }
 
-  /**
-   * @param {number} characterId
-   * @param {string} scope
-   * @returns {{ ok: true }}
-   */
   function remove(characterId, scope) {
     if (scope !== 'card' && scope !== 'records') {
       throw new AppError('invalid_scope', '删除范围不对', { status: 400 });

@@ -239,7 +239,6 @@ test('主动上下文：六项分配、先丢最旧原文再压 facts、总量�
     const proactive = fixture.makeProactive(scriptedLlm(() => '{}'));
     const anchors = proactive.buildAnchors(sessionId);
 
-    // 人设必须始终在场且带 role：它一旦被当成无 role 的空消息，整条主动消息就没有人格。
     const assertPersona = (context) => {
       assert.equal(context.messages[0].role, 'system');
       assert.match(context.messages[0].content, /主动开口的规矩/);
@@ -252,7 +251,6 @@ test('主动上下文：六项分配、先丢最旧原文再压 facts、总量�
     assert.ok(medium.tokens <= 1300);
     assertPersona(medium);
     const mediumText = medium.messages.map((message) => message.content).join('\n');
-    // 先丢最旧原文：最新的留下，最早的已经不在。
     assert.match(mediumText, /第6条/);
     assert.doesNotMatch(mediumText, /第1条/);
     assert.match(mediumText, /\[fact:\d+\]/);
@@ -264,7 +262,6 @@ test('主动上下文：六项分配、先丢最旧原文再压 facts、总量�
     assert.ok(tight.tokens <= 700);
     assertPersona(tight);
     const tightText = tight.messages.map((message) => message.content).join('\n');
-    // 原文丢完才压 facts，摘要最后才动。
     assert.doesNotMatch(tightText, /第6条/);
     assert.doesNotMatch(tightText, /\[fact:\d+\]/);
     assert.match(tightText, /【她今天】/);
@@ -334,9 +331,7 @@ test('她只提到锚点里几个字的具体说法时消息发得出来，泛�
   const fixture = makeFixture();
   try {
     const sessionId = fixture.addSession();
-    // 真实事件长这样：一整句中文，中间没有可切分的标点，模型不可能整句复述。
     const tattoo = fixture.addEvent(sessionId, 'Sakura今天在“暗之花”纹身店给客人纹了日式恶鬼图案', 1);
-    // 英文角色的生活事件是英文的，回复却可能只有一句中文，能原样对上的只有英文词。
     const english = fixture.addEvent(
       sessionId,
       'I pulled a quick smuggling run for eddies, bitching the whole way through back a',
@@ -361,7 +356,6 @@ test('她只提到锚点里几个字的具体说法时消息发得出来，泛�
       true,
     );
 
-    // 只碰巧共用一个虚词，不算提到了这件事。
     const generic = proactive.validate(
       { bubbles: ['从那边 through 过来一路都挺顺。'], anchor: { type: 'event', id: english } },
       anchors,
@@ -376,7 +370,6 @@ test('她只提到锚点里几个字的具体说法时消息发得出来，泛�
     assert.equal(smallTalk.ok, false);
     assert.equal(smallTalk.detail, 'anchor_text_mismatch');
 
-    // 校验放宽的前提是提示词要求她原样抄一个具体说法。
     const context = proactive.buildContext(sessionId, anchors);
     assert.match(context.messages[0].content, /原样抄/);
   } finally {

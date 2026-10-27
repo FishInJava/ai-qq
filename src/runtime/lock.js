@@ -19,16 +19,10 @@ function isProcessAlive(pid) {
     if (err.code === 'ESRCH') {
       return false;
     }
-    // EPERM 说明进程存在但当前用户无权发信号；其他错误保守地当作活着。
     return true;
   }
 }
 
-/**
- * 单实例锁：pid + started_at。进程不存在时视为陈旧锁并清理。
- *
- * @param {{ dataDir: string, clock: import('../clock/index.js').Clock, log?: object }} options
- */
 export function acquireLock({ dataDir, clock, log }) {
   const lockPath = path.join(dataDir, 'companion.lock');
 

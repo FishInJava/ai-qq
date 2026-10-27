@@ -1,11 +1,5 @@
-// PR 描述生成：先说人话，再把清单折起来。
-// 三段正文（这改了什么 / 怎么验的 / 会影响谁）解决"打开 PR 看不懂"；
-// 票的验收项、同意项、遗留照旧在，只是标题换成人话——事实一样，模板要求一样满足。
-// 判据在 .dsh/skills/pr/SKILL.md。这里只负责填，填不出来的东西不编。
-
 const STATUS_LABEL = { A: '新增', M: '改动', D: '删除', R: '重命名', C: '复制' };
 
-// 一段话说清"这改动落在哪、回滚要不要付代价"。
 const AREAS = [
   { test: /^src\/store\//, label: '数据（SQL 与迁移）', hard: true },
   { test: /^src\/http\//, label: '对外 HTTP/SSE 契约', hard: true },
@@ -20,14 +14,12 @@ const AREAS = [
   { test: /^package\.json$/, label: '依赖与脚本声明', hard: true },
 ];
 
-// 超过这个数就不逐个文件列进正文，让它留在 Files changed 里。
 const FILE_LIMIT = 6;
 
 function rel(path) {
   return String(path ?? '').replaceAll('\\', '/');
 }
 
-/** changes 是 { path, status }；files 是旧签名（纯路径）。 */
 function toChanges({ changes, files }) {
   const raw = Array.isArray(changes) && changes.length > 0 ? changes : (files ?? []);
   return raw
@@ -36,7 +28,6 @@ function toChanges({ changes, files }) {
     .sort((a, b) => a.path.localeCompare(b.path));
 }
 
-/** 改动形状：两个目录层的树，文件后面跟 git 状态。人扫一眼就知道动了哪块、加了还是改了。 */
 export function shapeTree(changes) {
   if (changes.length === 0) return '（相对 base 没有文件改动）';
 
@@ -68,7 +59,6 @@ function shapeBlock(changes) {
   return ['```text', shapeTree(changes), '```', ''].join('\n');
 }
 
-/** 怎么验的：只报这一次真的跑出来的数字，加动过哪些用例。 */
 function evidenceBlock({ gate, changes }) {
   const counts = gate.testCounts ? `${gate.testCounts.pass}/${gate.testCounts.total}` : null;
   const local = [
@@ -84,7 +74,6 @@ function evidenceBlock({ gate, changes }) {
   return rows.join('\n');
 }
 
-/** 会影响谁：落了哪几层 + 回滚要不要付代价。一句话。 */
 function impactBlock({ changes }) {
   const hits = [];
   for (const change of changes) {
@@ -100,7 +89,6 @@ function impactBlock({ changes }) {
   return `${labels}。${rollback}${noTests}`;
 }
 
-/** 文件清单：少于 6 个直接列，多了折进 details，别让正文变成台账。 */
 function filesBlock(changes) {
   if (changes.length === 0) return '（无文件改动）';
   const rows = changes.map((change) => `| \`${change.path}\` | ${STATUS_LABEL[change.status] ?? '改动'} |`);
@@ -133,7 +121,6 @@ function pullNotesValue(notes, label) {
   return match ? match[1].trim() : null;
 }
 
-/** 票通道：这改了什么 = 票的"用户能做什么了"；后面接验收项、同意项、遗留。 */
 export function ticketPrBody({ branch, ticket, ticketPath, changes, files, gate, consent }) {
   const number = /(\d+)/.exec(branch)?.[1] ?? 'NN';
   const list = toChanges({ changes, files });
@@ -162,7 +149,6 @@ ${acceptance}
 `;
 }
 
-/** bug 通道：这改了什么 = 症状；怎么改的 = 根因 + 修法，来自 commit body。 */
 export function fixPrBody({ branch, changes, files, gate, commits, commitBody }) {
   const parsed = parseFixBody(commitBody ?? '');
   const list = toChanges({ changes, files });
@@ -183,7 +169,6 @@ export function fixPrBody({ branch, changes, files, gate, commits, commitBody })
 `;
 }
 
-/** 其余（chore/ docs/）：这改了什么 = 这几条 commit 做了什么。 */
 export function plainPrBody({ changes, files, gate, commits }) {
   const list = toChanges({ changes, files });
   const what = commits.length > 0
@@ -192,7 +177,6 @@ export function plainPrBody({ changes, files, gate, commits }) {
   return head({ changes: list, gate, what, how: null });
 }
 
-/** 从 commit body 里按"段落标题：内容"切。缺哪段就返回空对象，交给调用方提示。 */
 export function parseFixBody(body) {
   const result = {};
   const lines = body.split(/\r?\n/);

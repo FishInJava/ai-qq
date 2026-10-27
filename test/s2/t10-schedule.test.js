@@ -102,7 +102,6 @@ function makeFixture(overrides = {}) {
     store.sessions.markUserMessage(sessionId, clock.iso(clock.now() - (minutesAgo * MINUTE_MS)));
   }
 
-  // 模拟旧版本行为：重启时无差别把指定 active 会话置成冷启动沉默。
   function forceColdStartSilenced(sessionId) {
     getHandle(store).prepare('UPDATE sessions SET cold_start_silenced = 1 WHERE id = ?').run(sessionId);
   }
@@ -481,7 +480,6 @@ test('冷启动沉默：从未对话的新会话启动时先不开口，用户�
     const schedule = fixture.makeSchedule(scriptedLlm());
     schedule.start();
     try {
-      // 从没说过话：重启后必须沉默，不刷屏。
       assert.equal(store.sessions.findById(sessionId).cold_start_silenced, 1);
       assert.equal((await schedule.runTick(sessionId, 'manual')).reason, 'cold_start');
 
@@ -501,9 +499,7 @@ test('冷启动沉默：已经聊过的会话重启后不再被重新沉默，�
   try {
     const { store, config } = fixture;
     const sessionId = fixture.addSession();
-    // 重启之前已经聊过：最后一句在 60 分钟前，越过 15 分钟冷却。
     fixture.markUser(sessionId, 60);
-    // 模拟旧版本：重启时无差别把所有 active 会话置成沉默。
     fixture.forceColdStartSilenced(sessionId);
     assert.equal(store.sessions.findById(sessionId).cold_start_silenced, 1);
     fixture.addEvent(sessionId, '今天把窗台擦了，屋里有点湿土味。', 1);
@@ -513,7 +509,6 @@ test('冷启动沉默：已经聊过的会话重启后不再被重新沉默，�
     const schedule = fixture.makeSchedule(scriptedLlm());
     schedule.start();
     try {
-      // 启动校正清掉残留：老会话不再被重启沉默挡下，不需要用户再先说一句。
       assert.equal(store.sessions.findById(sessionId).cold_start_silenced, 0);
       assert.equal((await schedule.runTick(sessionId, 'manual')).decision, 'send');
     } finally {
@@ -535,10 +530,8 @@ test('冷启动沉默：只收到过主动消息的会话重启后也不再沉�
     schedule.start();
     try {
       assert.equal(store.sessions.findById(proactiveOnly).cold_start_silenced, 0);
-      // 越过了冷启动这一层；这里没锚点，所以停在 no_anchor，而不是 cold_start。
       assert.notEqual((await schedule.runTick(proactiveOnly, 'manual')).reason, 'cold_start');
 
-      // 防刷屏没被放松：刚说过话且在 15 分钟冷却内，仍然 too_soon。
       const fresh = fixture.addSession();
       fixture.markUser(fresh, 0);
       config.schedule.cooldown_min = 15;

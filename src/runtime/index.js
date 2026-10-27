@@ -24,12 +24,6 @@ import { acquireLock } from './lock.js';
 import { createLog } from './log.js';
 import { openStore } from '../store/index.js';
 
-/**
- * 组合根：按 ARCHITECTURE §D-14 的启动顺序装配。
- * 当前包含配置 → 日志 → 单实例锁 → 数据库 → 卡片/角色库/会话状态 → HTTP；调度器与托盘在后续里程碑接上。
- *
- * @param {{ dataDir?: string }} [options]
- */
 export async function start({ dataDir } = {}) {
   const dir = path.resolve(dataDir ?? process.env.DATA_DIR ?? 'data');
   const clock = systemClock;
@@ -171,9 +165,6 @@ export async function start({ dataDir } = {}) {
     schedule.start();
     writeRuntimeFile({ dataDir: dir, port, clock });
 
-    // 服务只绑 127.0.0.1（见 http 模块），给用户一行能直接在浏览器打开的地址；
-    // 用实际监听端口：端口 0 自动分配、或被占用递增时也不会指错地方。
-    // 组合根是全项目唯一写 stdout 的位置（tools/check.js 已豁免 runtime）。
     process.stdout.write(`她已经醒着了，打开页面：http://127.0.0.1:${port}\n`);
     const autostartState = syncAutostart({
       dataDir: dir,

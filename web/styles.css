@@ -97,7 +97,6 @@ textarea:disabled {
   min-height: 100dvh;
 }
 
-/* ---------- rail / library ---------- */
 .rail {
   position: sticky;
   top: 0;
@@ -503,7 +502,6 @@ textarea:disabled {
   text-underline-offset: 3px;
 }
 
-/* ---------- stage ---------- */
 .stage {
   position: relative;
   display: grid;
@@ -609,7 +607,6 @@ textarea:disabled {
   opacity: 0.55;
 }
 
-/* ---------- intro ---------- */
 .intro {
   width: min(780px, 100%);
   padding: 30px;
@@ -733,7 +730,6 @@ textarea:disabled {
   font-size: 11px;
 }
 
-/* ---------- chat shell ---------- */
 .chat-shell {
   display: flex;
   flex-direction: column;
@@ -871,7 +867,6 @@ textarea:disabled {
   align-items: flex-start;
 }
 
-/* 消息时间：与原型一致，小号等宽字，在气泡上方 */
 .msg__meta {
   display: flex;
   align-items: center;
@@ -887,7 +882,6 @@ textarea:disabled {
   font-variant-numeric: tabular-nums;
 }
 
-/* 日期分隔行：对齐原型 .day */
 .day {
   display: flex;
   align-items: center;
@@ -918,7 +912,6 @@ textarea:disabled {
   white-space: pre-wrap;
 }
 
-/* 同一次回复的多条气泡：纵向排列，各自按内容收缩，绝不挤在一行（对齐原型 .bubbles） */
 .msg__bubbles {
   display: flex;
   flex-direction: column;
@@ -971,7 +964,6 @@ textarea:disabled {
   color: var(--ink-3);
 }
 
-/* ---------- dialog ---------- */
 .dialog {
   width: min(580px, calc(100vw - 32px));
   max-height: min(800px, calc(100dvh - 40px));
@@ -1033,7 +1025,6 @@ textarea:disabled {
   margin-right: 6px;
 }
 
-/* ---------- detail drawer ---------- */
 .detail-btn {
   margin-left: auto;
   align-self: flex-start;
@@ -1691,7 +1682,6 @@ details.desc p {
   line-height: 1.7;
 }
 
-/* ---------- export / delete dialogs ---------- */
 .dialog--compact {
   width: min(460px, calc(100vw - 32px));
 }
@@ -1801,7 +1791,6 @@ details.desc p {
   color: #fffaf2;
 }
 
-/* ---------- model settings ---------- */
 .settings {
   display: grid;
   gap: 15px;
@@ -1867,7 +1856,6 @@ details.desc p {
   margin: 0;
 }
 
-/* ---------- toast / mobile ---------- */
 .toast {
   position: fixed;
   left: 50%;

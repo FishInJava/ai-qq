@@ -67,14 +67,6 @@ function walkChunks(buffer, onChunk) {
   }
 }
 
-/**
- * 复用原图字节，只替换 `tEXt` key=chara 的内容；其余 chunk 原样拷贝。
- * 找不到 chara 块时在 IEND 前补一个。
- *
- * @param {Buffer} buffer
- * @param {string} jsonText
- * @returns {Buffer}
- */
 export function replaceCharaText(buffer, jsonText) {
   if (!isPng(buffer)) {
     throw new AppError('card_source_invalid', '原卡文件损坏，导出不了', { status: 500 });
@@ -124,13 +116,6 @@ const PLACEHOLDER_COLORS = [
   [206, 184, 166],
 ];
 
-/**
- * JSON 导入的卡没有原图，导出 PNG 时用一张纯色占位图包住原始卡片文本。
- * 颜色由卡片文本决定，同一张卡每次导出的图一致。
- *
- * @param {string} jsonText
- * @returns {Buffer}
- */
 export function makePlaceholderPng(jsonText) {
   const size = 160;
   const digest = createHash('sha256').update(jsonText, 'utf8').digest();
@@ -167,20 +152,10 @@ export function makePlaceholderPng(jsonText) {
   ]);
 }
 
-/**
- * @param {Buffer} buffer
- * @returns {boolean}
- */
 export function isPng(buffer) {
   return buffer.length >= PNG_SIGNATURE.length && buffer.subarray(0, 8).equals(PNG_SIGNATURE);
 }
 
-/**
- * 严格 base64：SillyTavern 写出的 chara 块是标准 base64，不允许夹杂任意字符。
- *
- * @param {string} text
- * @returns {Buffer}
- */
 function decodeBase64(text) {
   const compact = text.replace(/\s+/g, '');
   if (compact.length === 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(compact)) {
@@ -193,12 +168,6 @@ function decodeBase64(text) {
   return Buffer.from(padded, 'base64');
 }
 
-/**
- * 从 PNG 的 tEXt 块中取 key=chara 的 base64 JSON 文本。
- *
- * @param {Buffer} buffer
- * @returns {string}
- */
 export function extractCharaText(buffer) {
   if (!isPng(buffer)) {
     throw new AppError('card_png_invalid', '这张图不是角色卡（没找到角色数据块）', { status: 400 });

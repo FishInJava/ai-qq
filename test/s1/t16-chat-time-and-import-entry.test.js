@@ -99,11 +99,9 @@ test('消息 SSE 事件带 created_at，前端能据此渲染时间与日期分�
       );
     }
 
-    // 同一条回复内的气泡共享同一个时间戳，前端才不会把它们拆到不同日期。
     const stamps = new Set(bubbles.map((bubble) => bubble.data.created_at));
     assert.equal(stamps.size, 1, '同批气泡的时间戳应一致');
 
-    // 历史接口也要回 created_at，否则刷新后时间会消失。
     const history = await (await fetch(`${app.baseUrl}/api/sessions/${started.session.id}/messages`)).json();
     assert.ok(history.messages.length >= 2);
     for (const message of history.messages) {
@@ -121,25 +119,21 @@ test('任何状态下导入入口都只有一个，且删掉的重复入口不�
     const pageOf = async () => (await fetch(`${app.baseUrl}/`)).text();
     const countOf = (html, id) => (html.match(new RegExp(`id="${id}"`, 'g')) ?? []).length;
 
-    // 1) 空库：只剩一个导入入口。
     const empty = await pageOf();
     assert.equal(countOf(empty, 'stageImport'), 1, '空库时导入入口应恰好一个');
     assert.equal(countOf(empty, 'importZone'), 0, '左下角的重复入口必须已删除');
     assert.equal(countOf(empty, 'importOpen'), 0, '头部十字按钮必须已删除');
 
-    // 2) 有卡但未开始：入口仍在（它常驻在角色库头部，不随舞台切换消失）。
     const imported = await importCard(app, makeV2Card({ name: '入口甲' }));
     const intro = await pageOf();
     assert.equal(countOf(intro, 'stageImport'), 1, '选卡后导入入口仍应存在且只有一个');
     assert.equal(countOf(intro, 'importZone'), 0);
 
-    // 3) 聊天中：入口仍在。
     await startCard(app, imported.card.id);
     const chat = await pageOf();
     assert.equal(countOf(chat, 'stageImport'), 1, '聊天中导入入口仍应存在且只有一个');
     assert.equal(countOf(chat, 'importZone'), 0);
 
-    // 4) 入口必须真的打开导入弹窗，而不是个死按钮。
     const script = await (await fetch(`${app.baseUrl}/app.js`)).text();
     assert.match(script, /stageImport/);
     assert.match(script, /openImport/);

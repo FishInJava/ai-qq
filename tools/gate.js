@@ -1,12 +1,4 @@
 #!/usr/bin/env node
-// 一条命令跑完"改完代码 → 过闸"的那半段：
-//   preflight（分支/票）→ check（check + test + smoke）→ compliance（Rule 机检）
-//   → format（只做安全收敛）→ commit（规范 message）→ pr（七段/五段 body）
-//
-// 设计约束，都来自本仓库：
-// - 零依赖（ADR-0002）：只用 node: 内置模块，不装 prettier/eslint/husky。
-// - 门禁只有一道（Workflow §6）：这里调用的是 npm scripts 背后同一个 node 进程，不另造检查。
-// - 合并是人的动作（Rule §7-22）：本文件里没有 gh pr merge，也不会有。
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -24,8 +16,6 @@ import { buildCommitMessage, buildPrBody } from './gate/ship.js';
 
 const STAGES = ['preflight', 'check', 'compliance', 'format', 'commit', 'pr', 'install-hook', 'selftest'];
 const ISSUE_ROOT = '.scratch';
-
-// ---------------------------------------------------------------- 参数
 
 function parseArgs(argv) {
   const options = {
@@ -126,8 +116,6 @@ flags
 
 `;
 
-// ---------------------------------------------------------------- 输出
-
 const state = {
   branch: null,
   base: null,
@@ -159,8 +147,6 @@ function printFindings(findings) {
   return { errors, warnings };
 }
 
-// ---------------------------------------------------------------- 采集
-
 function filterByPaths(files) {
   if (state.options.paths.length === 0) return files;
   return files.filter((file) => state.options.paths.some((prefix) => rel(file).startsWith(prefix)));
@@ -176,7 +162,7 @@ function scanContent(files) {
   const findings = [];
   for (const file of files) {
     if (!isTextTarget(file.path)) continue;
-    if (file.size > 512 * 1024) continue; // 已由 G04 报，读全文没必要
+    if (file.size > 512 * 1024) continue;
     let text;
     try {
       text = readTextFile(file.path);
@@ -219,8 +205,6 @@ function loadTicket() {
   if (!ticketPath) return { ticket: null, ticketPath: null };
   return { ticket: parseTicket(readTextFile(ticketPath)), ticketPath };
 }
-
-// ---------------------------------------------------------------- 各阶段
 
 function stagePreflight(options) {
   out(`分支 ${state.branch} → base ${state.base}`);
@@ -281,7 +265,7 @@ function stageCheck(options) {
       out('  ── 失败输出（末尾 25 行）──');
       const text = `${result.stdout}\n${result.stderr}`.trimEnd().split('\n');
       for (const line of text.slice(-25)) out(`  ${line}`);
-      break; // 前一步红就不跑后面（Workflow §6）
+      break;
     }
   }
 
@@ -305,7 +289,6 @@ function stageCompliance(options) {
   ];
 
   if (options.stage !== 'compliance') {
-    // commit / pr 阶段要拦关票那三条
     const { ticket, ticketPath } = loadTicket();
     state.ticket = ticket ?? state.ticket;
     state.ticketPath = ticketPath ?? state.ticketPath;
@@ -322,7 +305,6 @@ function stageCompliance(options) {
 function stageFormat(options) {
   const files = collectFiles({ staged: options.stagedOnly });
   const targets = files.filter((file) => isTextTarget(file.path) && file.size <= 512 * 1024);
-  // 未跟踪的新文件先 git add 再格式化：替用户改他自己目录里的东西不算帮忙。
   const tracked = new Set(listTracked().map(rel));
   const changed = [];
 
@@ -382,7 +364,6 @@ function stageCommit(options) {
 
   let message;
   try {
-    // amend 时默认沿用原 message：推之前的收尾不该顺手改掉标题。
     const reuseExisting = options.amend && !options.subject && !options.body && !options.bodyFile;
     message = reuseExisting
       ? git(['log', '-1', '--format=%B'])
@@ -422,8 +403,6 @@ function stageCommit(options) {
 }
 
 function stagePr(options) {
-
-  // 只看已跟踪文件的改动：工作区里躺着别人的未跟踪目录，不该拦住开 PR。
   const dirty = git(['status', '--porcelain', '--untracked-files=no']).trim();
   if (dirty) {
     out('  工作区不干净，先提交再提 PR：');
@@ -438,7 +417,6 @@ function stagePr(options) {
   const { errors } = printFindings(findings);
   if (errors.length > 0) return false;
 
-  // 提 PR 前再跑一次门禁：PR body 里的勾选必须是刚跑出来的，不是回忆出来的（Workflow §6）。
   out('  开门禁（PR 描述里的结果来自这一次）');
   if (!stageCheck(options)) {
     out('  门禁红，不生成 PR。按 Workflow §7 分类后再来。');
@@ -470,7 +448,6 @@ function stagePr(options) {
     commits,
     commitBody,
     number,
-
   });
 
   const bodyFile = path.join(ROOT, '.git', 'gate-pr-body.md');
@@ -496,7 +473,6 @@ function stagePr(options) {
   }
 
   if (options.create) {
-    // gh 要的是主分支名，不是 git 的引用名：origin/main → main。
     const baseBranch = state.base.replace(/^origin\//, '');
     const create = run('gh', ['pr', 'create', '--base', baseBranch, '--title', options.title ?? title, '--body-file', bodyFile]);
     if (create.code !== 0) {
@@ -517,10 +493,6 @@ function stageSelfTest() {
   return result.code === 0;
 }
 
-/**
- * 装 pre-commit hook。不装 Husky：那是个依赖，而这里只要七行 sh。
- * .git/hooks 不进版本库，所以这是每台机器各自 opt-in 的事，不替人装。
- */
 function stageInstallHook() {
   const hooksDir = path.join(ROOT, '.git', 'hooks');
   const hookPath = path.join(hooksDir, 'pre-commit');
@@ -546,11 +518,8 @@ function stageInstallHook() {
   return true;
 }
 
-// ---------------------------------------------------------------- 主流程
-
 function runStages(options) {
   state.branch = currentBranch();
-  // 本地 main 常常落后，用它当基准会把别人的合并提交算成本分支的改动。
   state.base = options.base ?? (hasRemote() ? 'origin/main' : 'main');
   options.base = state.base;
   state.options = options;
@@ -567,7 +536,6 @@ function runStages(options) {
   if (options.stage === 'pr') return stagePr(options);
   if (options.stage === 'install-hook') return stageInstallHook();
 
-  // all：不改盘、不提交，只体检
   const preflight = stagePreflight(options);
   out('[2] 门禁');
   const check = stageCheck(options);

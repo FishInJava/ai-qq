@@ -2,12 +2,6 @@ import { getHandle } from '../handle.js';
 
 const KIND_ORDER = "CASE kind WHEN 'weather' THEN 0 WHEN 'holiday' THEN 1 ELSE 2 END";
 
-/**
- * 某本地日已抓到的世界信息；一天内每类最多一条（UNIQUE(date, kind)）。
- *
- * @param {object} store
- * @param {string} day
- */
 export function listForDay(store, day) {
   return getHandle(store)
     .prepare(`
@@ -18,13 +12,6 @@ export function listForDay(store, day) {
     .all(day);
 }
 
-/**
- * 幂等写入：当天同类已存在时忽略，返回是否真的插入。
- *
- * @param {object} store
- * @param {{ date: string, kind: string, content: string, fetchedAt: string }} feed
- * @returns {boolean}
- */
 export function insertIfAbsent(store, feed) {
   const result = getHandle(store)
     .prepare(`
@@ -35,13 +22,6 @@ export function insertIfAbsent(store, feed) {
   return Number(result.changes) > 0;
 }
 
-/**
- * 启动清理：只保留最近 90 天。
- *
- * @param {object} store
- * @param {string} cutoffDay YYYY-MM-DD（含当天保留）
- * @returns {number}
- */
 export function removeBefore(store, cutoffDay) {
   const result = getHandle(store).prepare('DELETE FROM world_feeds WHERE date < ?').run(cutoffDay);
   return Number(result.changes);

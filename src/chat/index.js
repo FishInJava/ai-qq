@@ -20,14 +20,6 @@ function llmRole(role) {
   return 'user';
 }
 
-/**
- * 消息的展示时间由服务端算好：页面不许碰时间（Rule §1.3 / 硬规则 1）。
- * `clock_text` 是本地 HH:mm，`local_day` 是本地 YYYY-MM-DD，
- * 页面只拿这两个字符串做渲染与日期分隔。
- *
- * @param {object} row
- * @param {object} clock
- */
 function messageView(row, clock) {
   const iso = row.created_at;
   return {
@@ -60,22 +52,6 @@ function allocateTokens(bubbles, total) {
   return result;
 }
 
-/**
- * 对话编排：落用户消息 → 组装上下文 → 流式生成 → 后置过滤 → 逐气泡落库 → 结算。
- *
- * @param {{
- *   store: object,
- *   clock: import('../clock/index.js').Clock,
- *   config: object,
- *   llm: object,
- *   style: object,
- *   quota: object,
- *   session?: object,
- *   memory?: object,
- *   bus: object,
- *   log?: object,
- * }} options
- */
 export function createChat({
   store,
   clock,
@@ -128,12 +104,6 @@ export function createChat({
     }
   }
 
-  /**
-   * 倒序取、正序返；`before` 是上一页最小 id。
-   *
-   * @param {number} sessionId
-   * @param {{ before?: number | null, limit?: number }} [options]
-   */
   function history(sessionId, { before = null, limit = DEFAULT_HISTORY_LIMIT } = {}) {
     const session = requireSession(sessionId);
 
@@ -159,13 +129,6 @@ export function createChat({
     return { messages: rows.reverse().map((row) => messageView(row, clock)) };
   }
 
-  /**
-   * 人设 + 最近摘要 + pending facts + 最近原文。
-   * 裁剪顺序：先丢最旧原文 → 再丢 facts → 摘要永不丢。
-   *
-   * @param {number} sessionId
-   * @param {'chat' | 'proactive'} [kind]
-   */
   function buildContext(sessionId, kind = 'chat') {
     const session = requireSession(sessionId);
     const card = requireCard(session);
@@ -248,13 +211,6 @@ export function createChat({
     return { text, usage };
   }
 
-  /**
-   * 先产出 `user_ack`，再产出 `bubble`* 与 `done`。
-   * 前置错误在第一次 `next()` 时抛出，HTTP 层可以据此回 4xx JSON。
-   *
-   * @param {number} sessionId
-   * @param {string} rawText
-   */
   async function* send(sessionId, rawText) {
     const session = requireSession(sessionId);
     const text = typeof rawText === 'string' ? rawText.trim() : '';

@@ -10,19 +10,10 @@ const HOUR_MS = 60 * 60 * 1000;
 const PAUSE_GAP_MIN_HOURS = 2;
 const MAX_TOKEN_LIMIT = 10_000_000;
 
-/**
- * 四值入库，三词出镜：unstarted 不出状态角标。
- *
- * @param {string | null | undefined} state
- * @returns {string | null}
- */
 export function stateWord(state) {
   return STATE_WORDS[state] ?? null;
 }
 
-/**
- * @param {object} session
- */
 export function viewSession(session) {
   return {
     id: session.id,
@@ -41,20 +32,7 @@ function parseIso(clock, iso) {
   return clock.parseIso(iso);
 }
 
-/**
- * 会话状态机唯一入口。迁移只改 `sessions.state`，不碰额度账本。
- *
- * @param {{
- *   store: object,
- *   clock: import('../clock/index.js').Clock,
- *   config: object,
- *   quota: object,
- *   bus: object,
- *   log?: object,
- * }} options
- */
 export function createSessionService({ store, clock, config, quota, bus, log }) {
-  /** 暂停起点只在进程内；重启后用 last_user_msg_at / created_at 兜底。 */
   const pausedSince = new Map();
 
   function requireSession(sessionId) {
@@ -106,12 +84,6 @@ export function createSessionService({ store, clock, config, quota, bus, log }) 
     return Number(session.token_used) >= Number(session.token_limit);
   }
 
-  /**
-   * 历史遗留的“额度已耗尽但状态还没转”的会话，在读取时懒迁移。
-   *
-   * @param {object} session
-   * @returns {object}
-   */
   function syncExhausted(session) {
     if ((session.state === 'active' || session.state === 'paused') && exhausted(session)) {
       transition(session.id, 'exhaust');
@@ -120,27 +92,15 @@ export function createSessionService({ store, clock, config, quota, bus, log }) 
     return session;
   }
 
-  /**
-   * @param {number} sessionId
-   * @returns {object}
-   */
   function getSession(sessionId) {
     return requireSession(sessionId);
   }
 
-  /**
-   * @param {number} sessionId
-   */
   function view(sessionId) {
     const session = syncExhausted(requireSession(sessionId));
     return viewSession(session);
   }
 
-  /**
-   * 对话可生成：active / paused；dormant 与 unstarted 不可。
-   *
-   * @param {number} sessionId
-   */
   function canGenerate(sessionId) {
     const session = syncExhausted(requireSession(sessionId));
     return session.state === 'active' || session.state === 'paused';
@@ -166,11 +126,6 @@ export function createSessionService({ store, clock, config, quota, bus, log }) 
     return result.session;
   }
 
-  /**
-   * @param {number} sessionId
-   * @param {'start'|'pause'|'resume'|'exhaust'|'refill'|'restart'|'llm_down'|'llm_up'} event
-   * @param {{ tokenLimit?: number }} [ctx]
-   */
   function transition(sessionId, event, ctx = {}) {
     const session = requireSession(sessionId);
     const from = session.state;
@@ -295,11 +250,6 @@ export function createSessionService({ store, clock, config, quota, bus, log }) 
     };
   }
 
-  /**
-   * 托盘“暂停所有会话”：active → paused；已耗尽的直接 dormant。
-   *
-   * @returns {number}
-   */
   function pauseAll() {
     let paused = 0;
     for (const session of store.sessions.listAll()) {
@@ -318,12 +268,6 @@ export function createSessionService({ store, clock, config, quota, bus, log }) 
     return paused;
   }
 
-  /**
-   * 续额只抬高上限并记流水；状态迁移单独走 transition。
-   *
-   * @param {number} sessionId
-   * @param {number} amount
-   */
   function refill(sessionId, amount) {
     const session = requireSession(sessionId);
     const value = Number(amount);
@@ -345,11 +289,6 @@ export function createSessionService({ store, clock, config, quota, bus, log }) 
     return { session: view(session.id), quota: recorded };
   }
 
-  /**
-   * 下一句是否该带“好转”语气：最近一次续额晚于最近一条角色消息。
-   *
-   * @param {number} sessionId
-   */
   function isRecovered(sessionId) {
     const session = requireSession(sessionId);
     const refillAt = store.tokenLedger.lastRefillAt(session.id);
@@ -370,12 +309,6 @@ export function createSessionService({ store, clock, config, quota, bus, log }) 
     }
   }
 
-  /**
-   * 改上限；改小到已用以下立即 dormant。抬高上限不自动唤醒，续额走 refill。
-   *
-   * @param {number} sessionId
-   * @param {number} tokenLimit
-   */
   function setTokenLimit(sessionId, tokenLimit) {
     const session = requireSession(sessionId);
     const value = Number(tokenLimit);

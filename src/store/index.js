@@ -44,12 +44,6 @@ function backupCorruptDatabase({ dbPath, clock, log }) {
   return backupPath;
 }
 
-/**
- * 打开 SQLite、设置 PRAGMA、返回 store 门面。
- * 业务模块只能通过 repo 读写，拿不到 db 句柄。
- *
- * @param {{ dataDir: string, clock: import('../clock/index.js').Clock, log?: object }} options
- */
 export function openStore({ dataDir, clock, log }) {
   if (!dataDir) {
     throw new AppError('store_no_data_dir', '缺少数据目录', { status: 500 });
@@ -100,7 +94,6 @@ export function openStore({ dataDir, clock, log }) {
   const store = {
     dbPath,
 
-    /** 顺序执行未应用的迁移，事务内完成。 */
     migrate() {
       const handle = getHandle(store);
       handle.exec(`
@@ -139,13 +132,6 @@ export function openStore({ dataDir, clock, log }) {
       }
     },
 
-    /**
-     * 写事务唯一入口。禁止嵌套。
-     *
-     * @template T
-     * @param {() => T} fn
-     * @returns {T}
-     */
     tx(fn) {
       if (inTransaction) {
         throw new AppError('store_nested_tx', '数据库事务不能嵌套', { status: 500 });
@@ -169,13 +155,6 @@ export function openStore({ dataDir, clock, log }) {
       }
     },
 
-    /**
-     * 只读包装。当前不强制快照，保留给后续查询使用。
-     *
-     * @template T
-     * @param {() => T} fn
-     * @returns {T}
-     */
     read(fn) {
       return fn();
     },

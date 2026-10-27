@@ -14,11 +14,6 @@ function startupScriptPath(dataDir) {
   return path.join(dataDir, SCRIPT_NAME);
 }
 
-/**
- * 自启脚本必须自己带上数据目录与工作目录；否则开机时 cwd 是 system32，会建错库。
- *
- * @param {{ projectRoot: string, dataDir: string, nodePath: string }} options
- */
 export function buildStartupScript({ projectRoot, dataDir, nodePath }) {
   const quoted = (value) => `"${String(value).replaceAll('"', '""')}"`;
   return [
@@ -34,10 +29,6 @@ function runReg(args) {
   execFileSync('reg.exe', args, { stdio: 'ignore', windowsHide: true });
 }
 
-/**
- * @param {{ dataDir: string, platform?: NodeJS.Platform, disabled?: boolean }} options
- * @returns {{ supported: boolean, enabled: boolean, reason?: string }}
- */
 export function status({ dataDir, platform = process.platform, disabled = false }) {
   if (!isWindows(platform)) {
     return { supported: false, enabled: false, reason: 'not_windows' };
@@ -61,11 +52,6 @@ export function status({ dataDir, platform = process.platform, disabled = false 
   }
 }
 
-/**
- * 写当前用户启动项，失败抛给 sync 统一降级。
- *
- * @param {{ dataDir: string, projectRoot: string, nodePath?: string, platform?: NodeJS.Platform }} options
- */
 export function enable({
   dataDir,
   projectRoot,
@@ -92,35 +78,19 @@ export function enable({
   return { supported: true, enabled: true, script };
 }
 
-/**
- * @param {{ dataDir: string, platform?: NodeJS.Platform }} options
- */
 export function disable({ dataDir, platform = process.platform }) {
   if (!isWindows(platform)) {
     return { supported: false, enabled: false, reason: 'not_windows' };
   }
   try {
     runReg(['delete', RUN_KEY, '/v', VALUE_NAME, '/f']);
-  } catch {
-    // 本来就不存在时 reg.exe 也返回非 0；移除是幂等的。
+  } catch (error) {
+    void error;
   }
   rmSync(startupScriptPath(dataDir), { force: true });
   return { supported: true, enabled: false };
 }
 
-/**
- * 启动时同步配置；任何失败只告警，不阻断主进程。
- *
- * @param {{
- *   dataDir: string,
- *   projectRoot: string,
- *   enabled: boolean,
- *   nodePath?: string,
- *   platform?: NodeJS.Platform,
- *   disabled?: boolean,
- *   log?: object,
- * }} options
- */
 export function sync({
   dataDir,
   projectRoot,
@@ -143,11 +113,6 @@ export function sync({
   }
 }
 
-/**
- * 测试与排障读取自启脚本，不触发系统调用。
- *
- * @param {string} dataDir
- */
 export function readStartupScript(dataDir) {
   const file = startupScriptPath(dataDir);
   return existsSync(file) ? readFileSync(file, 'utf8') : null;

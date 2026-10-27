@@ -3,12 +3,6 @@ import { readJson, sendJson } from '../respond.js';
 
 const BODY_LIMIT = 16 * 1024;
 
-/**
- * 托盘辅助进程专用；同源校验在 http/index.js 统一做。
- *
- * @param {ReturnType<import('../router.js').createRouter>} router
- * @param {{ admin: object }} services
- */
 export function registerAdminRoutes(router, { admin }) {
   router.add('POST', '/api/admin/pause-all', ({ res }) => {
     sendJson(res, 200, admin.pauseAll());
