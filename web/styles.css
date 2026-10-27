@@ -918,6 +918,19 @@ textarea:disabled {
   white-space: pre-wrap;
 }
 
+/* 同一次回复的多条气泡：纵向排列，各自按内容收缩，绝不挤在一行（对齐原型 .bubbles） */
+.msg__bubbles {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+}
+
+.msg--user .msg__bubbles {
+  align-items: flex-end;
+}
+
 .msg--char .msg__bubble {
   border: 1px solid var(--line);
   border-bottom-left-radius: 6px;

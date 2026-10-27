@@ -21,7 +21,7 @@ const state = {
   messages: new Map(),
   historyLoaded: new Set(),
   usage: new Map(),
-  sending: false,
+  sending: new Set(),
   events: null,
   drawer: {
     tab: 'sched',
@@ -299,11 +299,6 @@ function currentCard() {
 }
 
 /**
- * 时间全部由服务端算好（clock 是唯一时间源，页面不许碰时间）：
- * clock_text 是本地 HH:mm，local_day 是本地 YYYY-MM-DD。
- * 这里只做「今天/昨天」的措辞与日期分隔行的拼装。
- */
-/**
  * 时间全部由服务端算好：clock 是唯一时间源，页面不许碰时间（硬规则 1）。
  * `clock_text` 是本地 HH:mm，`local_day` 是本地 YYYY-MM-DD。
  * 这里只拼「今天/昨天」的措辞与日期分隔行，不做任何日期运算。
@@ -323,17 +318,40 @@ function dayLabelOf(localDay) {
   return label;
 }
 
-function messageHtml(message, lastDay) {
-  const mine = message.role === 'user';
-  const clock = message.clock_text ?? '';
-  const localDay = message.local_day ?? '';
-  const meta = clock
-    ? `<div class="msg__meta"><span>${mine ? '你' : esc(currentCard()?.name ?? '')}</span><span aria-hidden="true">·</span><time>${esc(clock)}</time></div>`
-    : '';
-  const day = localDay && localDay !== lastDay
-    ? `<li class="day">${esc(dayLabelOf(localDay))}</li>`
-    : '';
-  return `${day}<li class="msg ${mine ? 'msg--user' : 'msg--char'}">${meta}<div class="msg__bubble">${esc(message.content)}</div></li>`;
+function metaHtml(group) {
+  const first = group.bubbles[0];
+  const clock = first?.clock_text ?? '';
+  if (!clock) {
+    return '';
+  }
+  const who = group.role === 'user' ? '你' : esc(currentCard()?.name ?? '');
+  return `<div class="msg__meta"><span>${who}</span><span aria-hidden="true">·</span><time>${esc(clock)}</time></div>`;
+}
+
+/**
+ * 同一次生成的多条气泡合成一个消息块，与原型 `turn` + `bubbles` 的结构一致：
+ * 一次回复只出现一个头像位、一组气泡。判据是 `bubble_index` 连续递增
+ * （新一次回复总是从 0 开始），因此不需要读时间，SSE 与历史两条路径都适用。
+ */
+function groupMessages(list) {
+  const groups = [];
+  for (const message of list) {
+    const previous = groups.at(-1);
+    const last = previous?.bubbles.at(-1);
+    const index = message.bubble_index;
+    const continuous = previous
+      && previous.role === 'char'
+      && message.role === 'char'
+      && Number.isInteger(index)
+      && Number.isInteger(last?.bubble_index)
+      && index === last.bubble_index + 1;
+    if (continuous) {
+      previous.bubbles.push(message);
+      continue;
+    }
+    groups.push({ role: message.role, bubbles: [message] });
+  }
+  return groups;
 }
 
 function renderMessages() {
@@ -341,13 +359,22 @@ function renderMessages() {
   const sessionId = card?.session_id;
   const list = sessionId ? state.messages.get(sessionId) ?? [] : [];
 
+  // 先按 local_day 变化给每个组打上日期分隔行（票 16），
+  // 组内多气泡共用一个时间 meta（同一次生成共享 batchAt）。
+  const groups = groupMessages(list);
   let lastDay = '';
-  els.chatMessages.innerHTML = list.map((message) => {
-    const html = messageHtml(message, lastDay);
-    if (message.local_day) {
-      lastDay = message.local_day;
+  els.chatMessages.innerHTML = groups.map((group) => {
+    const mine = group.role === 'user';
+    const day = group.bubbles[0]?.local_day && group.bubbles[0].local_day !== lastDay
+      ? `<li class="day">${esc(dayLabelOf(group.bubbles[0].local_day))}</li>`
+      : '';
+    if (group.bubbles[0]?.local_day) {
+      lastDay = group.bubbles[0].local_day;
     }
-    return html;
+    const bubbles = group.bubbles
+      .map((message) => `<div class="msg__bubble">${esc(message.content)}</div>`)
+      .join('');
+    return `${day}<li class="msg ${mine ? 'msg--user' : 'msg--char'} msg--group">${metaHtml(group)}<div class="msg__bubbles">${bubbles}</div></li>`;
   }).join('');
   els.chatMessages.hidden = list.length === 0;
   els.chatPlaceholder.hidden = list.length > 0;
@@ -359,11 +386,12 @@ function renderMessages() {
 
 function updateComposer(card) {
   const unavailable = !card || !card.session_id || card.state === 'dormant';
-  els.composerInput.disabled = unavailable || state.sending;
+  const sending = card?.session_id ? state.sending.has(card.session_id) : false;
+  els.composerInput.disabled = unavailable || sending;
   els.composerSend.disabled = unavailable
-    || state.sending
+    || sending
     || els.composerInput.value.trim() === '';
-  els.composerSend.textContent = state.sending ? '发送中…' : '发送';
+  els.composerSend.textContent = sending ? '发送中…' : '发送';
 
   if (!card || !card.session_id) {
     els.composerInput.placeholder = '开始聊天后才能发消息';
@@ -475,6 +503,8 @@ async function consumeEvents(response, sessionId, pendingText) {
             bubble_index: null,
             incomplete: 0,
             created_at: event.data?.created_at ?? '',
+            clock_text: event.data?.clock_text ?? null,
+            local_day: event.data?.local_day ?? null,
           });
           renderMessages();
         } else if (event.name === 'bubble') {
@@ -486,6 +516,8 @@ async function consumeEvents(response, sessionId, pendingText) {
             bubble_index: event.data?.bubble_index ?? null,
             incomplete: event.data?.incomplete ? 1 : 0,
             created_at: event.data?.created_at ?? '',
+            clock_text: event.data?.clock_text ?? null,
+            local_day: event.data?.local_day ?? null,
           });
           renderMessages();
         } else if (event.name === 'done') {
@@ -514,7 +546,8 @@ async function consumeEvents(response, sessionId, pendingText) {
 
 async function sendMessage() {
   const card = currentCard();
-  if (!card || !card.session_id || state.sending) {
+  const sessionId = card?.session_id;
+  if (!card || !sessionId || state.sending.has(sessionId)) {
     return;
   }
 
@@ -523,11 +556,11 @@ async function sendMessage() {
     return;
   }
 
-  state.sending = true;
+  state.sending.add(sessionId);
   updateComposer(card);
 
   try {
-    const response = await fetch(`/api/sessions/${card.session_id}/messages`, {
+    const response = await fetch(`/api/sessions/${sessionId}/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
       body: JSON.stringify({ text }),
@@ -540,11 +573,11 @@ async function sendMessage() {
     }
 
     els.composerInput.value = '';
-    await consumeEvents(response, card.session_id, text);
+    await consumeEvents(response, sessionId, text);
   } catch {
     showToast('她那边没有回应，请稍后再试');
   } finally {
-    state.sending = false;
+    state.sending.delete(sessionId);
     updateComposer(currentCard());
     void loadCards();
   }

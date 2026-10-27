@@ -19,9 +19,9 @@ function payloadOf(event) {
 
 /**
  * @param {ReturnType<import('../router.js').createRouter>} router
- * @param {{ chat: object }} services
+ * @param {{ chat: object, log?: object }} services
  */
-export function registerMessageRoutes(router, { chat }) {
+export function registerMessageRoutes(router, { chat, log }) {
   router.add('GET', '/api/sessions/:id/messages', ({ res, params, url }) => {
     const beforeRaw = url.searchParams.get('before');
     const limitRaw = url.searchParams.get('limit');
@@ -59,8 +59,15 @@ export function registerMessageRoutes(router, { chat }) {
         sendSse(res, event.type, payloadOf(event));
       }
     } catch (err) {
+      const code = err instanceof AppError ? err.code : 'internal';
+      // 失败必须留痕：否则“她不理我”在现场只剩一条 user 消息，无从排查。
+      log?.warn('chat_failed', {
+        session_id: Number(params.id),
+        code,
+        message: err instanceof Error ? err.message : String(err),
+      });
       sendSse(res, 'error', {
-        code: err instanceof AppError ? err.code : 'internal',
+        code,
         message: err instanceof AppError ? err.message : '她那边出了点问题，请稍后再试',
       });
     } finally {

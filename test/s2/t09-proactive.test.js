@@ -239,30 +239,43 @@ test('主动上下文：六项分配、先丢最旧原文再压 facts、总量�
     const proactive = fixture.makeProactive(scriptedLlm(() => '{}'));
     const anchors = proactive.buildAnchors(sessionId);
 
-    config.llm.context_budget = 3600;
+    // 人设必须始终在场且带 role：它一旦被当成无 role 的空消息，整条主动消息就没有人格。
+    const assertPersona = (context) => {
+      assert.equal(context.messages[0].role, 'system');
+      assert.match(context.messages[0].content, /主动开口的规矩/);
+    };
+
+    config.llm.context_budget = 3900;
     config.llm.proactive_context_budget = 2000;
     const medium = proactive.buildContext(sessionId, anchors);
-    assert.equal(medium.budget, 1200);
-    assert.ok(medium.tokens <= 1200);
+    assert.equal(medium.budget, 1300);
+    assert.ok(medium.tokens <= 1300);
+    assertPersona(medium);
     const mediumText = medium.messages.map((message) => message.content).join('\n');
+    // 先丢最旧原文：最新的留下，最早的已经不在。
     assert.match(mediumText, /第6条/);
     assert.doesNotMatch(mediumText, /第1条/);
-    assert.match(mediumText, /\[fact:/);
+    assert.match(mediumText, /\[fact:\d+\]/);
+    assert.match(mediumText, /【以前的摘要】/);
 
     config.llm.context_budget = 2100;
     const tight = proactive.buildContext(sessionId, anchors);
     assert.equal(tight.budget, 700);
-    assert.ok(tight.tokens <= 800);
+    assert.ok(tight.tokens <= 700);
+    assertPersona(tight);
     const tightText = tight.messages.map((message) => message.content).join('\n');
+    // 原文丢完才压 facts，摘要最后才动。
     assert.doesNotMatch(tightText, /第6条/);
-    assert.match(tightText, /\[fact:5\]/);
-    assert.doesNotMatch(tightText, /\[fact:3\]/);
+    assert.doesNotMatch(tightText, /\[fact:\d+\]/);
+    assert.match(tightText, /【她今天】/);
     assert.match(tightText, /【以前的摘要】/);
 
     config.llm.context_budget = 300;
     const tiny = proactive.buildContext(sessionId, anchors);
     assert.equal(tiny.budget, 100);
     assert.ok(tiny.tokens <= 100);
+    assert.equal(tiny.messages.length, 1);
+    assert.equal(tiny.messages[0].role, 'system');
   } finally {
     fixture.close();
   }

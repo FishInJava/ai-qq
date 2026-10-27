@@ -20,7 +20,16 @@ function llmRole(role) {
   return 'user';
 }
 
-function messageView(row) {
+/**
+ * 消息的展示时间由服务端算好：页面不许碰时间（Rule §1.3 / 硬规则 1）。
+ * `clock_text` 是本地 HH:mm，`local_day` 是本地 YYYY-MM-DD，
+ * 页面只拿这两个字符串做渲染与日期分隔。
+ *
+ * @param {object} row
+ * @param {object} clock
+ */
+function messageView(row, clock) {
+  const iso = row.created_at;
   return {
     id: row.id,
     role: row.role,
@@ -28,7 +37,9 @@ function messageView(row) {
     is_proactive: row.is_proactive,
     bubble_index: row.bubble_index,
     incomplete: row.incomplete,
-    created_at: row.created_at,
+    created_at: iso,
+    clock_text: clock?.localClockText ? clock.localClockText(iso) : null,
+    local_day: clock?.localDayOfIso ? clock.localDayOfIso(iso) : null,
   };
 }
 
@@ -145,7 +156,7 @@ export function createChat({
       limit: safeLimit,
     });
 
-    return { messages: rows.reverse().map(messageView) };
+    return { messages: rows.reverse().map((row) => messageView(row, clock)) };
   }
 
   /**
@@ -293,6 +304,8 @@ export function createChat({
       bubble_index: null,
       incomplete: 0,
       created_at: createdAt,
+      clock_text: clock.localClockText(createdAt),
+      local_day: clock.localDayOfIso(createdAt),
     };
     bus.emit('message', { session_id: session.id, message: userMessage });
     yield {
@@ -405,6 +418,8 @@ export function createChat({
           bubble_index: item.bubble_index,
           incomplete: 0,
           created_at: item.created_at,
+          clock_text: clock.localClockText(item.created_at),
+          local_day: clock.localDayOfIso(item.created_at),
         },
       });
     }

@@ -136,6 +136,7 @@ export function createClock({ now = () => Date.now() } = {}) {
       const date = new Date(ms);
       return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
     },
+
     /**
      * @param {number} [ms]
      * @returns {number} 当日本地分钟数（08:30 → 510）

@@ -350,8 +350,10 @@ export function createProactive({ store, clock, config, llm, style, quota, bus, 
     const guidanceMessage = guidance && GUIDANCE[guidance]
       ? { role: 'system', content: GUIDANCE[guidance] }
       : null;
+    // 人设必须以消息对象进上下文：裸字符串会被下面的 `.role` 读成 undefined，
+    // 真实端点随即以 missing `messages.role` 返回 400，主动消息从此永不成功。
     const assemble = () => [
-      system,
+      { role: 'system', content: system },
       ...(guidanceMessage ? [guidanceMessage] : []),
       ...summaries,
       ...events,
@@ -359,8 +361,7 @@ export function createProactive({ store, clock, config, llm, style, quota, bus, 
       ...recent,
       nudge,
     ]
-      .filter((message) => message.content !== '')
-      .map((message) => ({ role: message.role, content: message.content }));
+      .filter((message) => typeof message?.role === 'string' && message.content !== '');
 
     const budget = Math.max(
       1,
@@ -722,6 +723,8 @@ export function createProactive({ store, clock, config, llm, style, quota, bus, 
           bubble_index: index,
           incomplete: 0,
           created_at: result.createdAt,
+          clock_text: clock.localClockText(result.createdAt),
+          local_day: clock.localDayOfIso(result.createdAt),
         },
       });
     }

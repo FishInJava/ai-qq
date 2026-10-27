@@ -373,6 +373,8 @@ event: done
 data: {"tokens":88,"estimated":false,"quota":{"used":1234,"limit":500000,"ratio":0.0025,"warn":false}}
 ```
 
+`created_at` 是 UTC ISO8601（`clock.iso()` 产出），随消息一起给出，**页面不做任何时间计算，只把它格式化成本地 `HH:mm` 并据此插日期分隔行**。同一条回复的多个气泡共享同一个 `created_at`（一次生成的批时间），页面才不会把同一句话拆到两个日期下。
+
 断流时前端保留半句并把该气泡标 `incomplete`（后端 `messages.incomplete = 1`）。
 
 ---
