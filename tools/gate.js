@@ -364,8 +364,8 @@ function stageFormat(options) {
 function stageCommit(options) {
   out('  ① 格式化（只动 git 认得的文件）');
   stageFormat({ ...options, fix: true });
-  out('  ② 门禁');
-  const checkOk = stageCheck(options);
+  out('  ② 快检（全量测试留给 pr 和 CI，别为一行改动等 26 秒）');
+  const checkOk = stageCheck({ ...options, fast: true });
   out('  ③ 合规');
   const complianceOk = stageCompliance(options);
   if (!checkOk || !complianceOk) {

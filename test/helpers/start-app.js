@@ -75,6 +75,15 @@ export async function startApp({ config = {}, dataDir: existingDir = null, keepD
     throw new Error(`应用没有在 ${START_TIMEOUT_MS}ms 内启动。\n${outputText}`);
   }
 
+  // runtime.json 会先于 stdout 的 data 事件出现（文件系统 vs pipe + 事件循环）。
+  // 并发跑全量时这里会抢跑，output() 拿到空串，t17 就红。给它一拍。
+  if (runtime) {
+    const outputDeadline = Date.now() + 200;
+    while (outputText.length === 0 && child.exitCode === null && Date.now() < outputDeadline) {
+      await delay(10);
+    }
+  }
+
   return {
     dataDir,
     port: runtime.port,
