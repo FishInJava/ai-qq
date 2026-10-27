@@ -237,7 +237,7 @@ validate(resp, anchors)        // { ok, reason }
 commit(sessionId, msg, anchor) // 事务：写 messages/proactive_log/life_events 使用标记/facts 状态/预算/账本
 ```
 
-校验三条全过才提交：`anchor.id` 在集合内、`anchor.type` 与来源一致、正文命中锚点关键片段（`fact.value` 或事件正文按标点切出的 ≥2 字段落任一出现）。任一条失败：丢弃、不扣预算、写 `proactive_drop{reason}`。
+校验三条全过才提交：`anchor.id` 在集合内、`anchor.type` 与来源一致、正文提到锚点里的具体东西（`fact.value` / `key` 原文出现；事件正文与正文有 ≥3 个连续汉字重合，或共用一个 4 字母以上的实词）。事件不要求原样复述整句——中文长句没有可切分的标点，整句匹配在真实模型下永不通过。任一条失败：丢弃、不扣预算、写 `proactive_drop{reason}`。
 
 ### 4.9 `chat` / `style`
 
