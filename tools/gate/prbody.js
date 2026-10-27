@@ -1,50 +1,131 @@
-// PR 描述生成：把"票 + 本次改动 + 门禁结果"拼成审阅面。
-// 两套版式来自 Workflow.md §9：票走七段（.github/pull_request_template.md），
-// bug 走五段短版（.dsh/skills/fix-bug/SKILL.md §5）。模板不在这里重定义，只负责填。
+// PR 描述生成：先说人话，再把清单折起来。
+// 三段正文（这改了什么 / 怎么验的 / 会影响谁）解决"打开 PR 看不懂"；
+// 票的验收项、同意项、遗留照旧在，只是标题换成人话——事实一样，模板要求一样满足。
+// 判据在 .dsh/skills/pr/SKILL.md。这里只负责填，填不出来的东西不编。
 
-const LAYERS = [
-  { key: 'store', label: 'store', test: (file) => file.startsWith('src/store/') },
-  { key: 'http', label: 'http', test: (file) => file.startsWith('src/http/') },
-  { key: 'web', label: 'web', test: (file) => file.startsWith('web/') },
-  { key: 'test', label: 'test', test: (file) => file.startsWith('test/') },
-  { key: 'tools', label: 'tools', test: (file) => file.startsWith('tools/') },
-  { key: 'docs', label: 'docs', test: (file) => /^(?:docs|\.scratch)\//.test(file) || /\.md$/.test(file) },
-  { key: 'module', label: '业务', test: (file) => file.startsWith('src/') },
+const STATUS_LABEL = { A: '新增', M: '改动', D: '删除', R: '重命名', C: '复制' };
+
+// 一段话说清"这改动落在哪、回滚要不要付代价"。
+const AREAS = [
+  { test: /^src\/store\//, label: '数据（SQL 与迁移）', hard: true },
+  { test: /^src\/http\//, label: '对外 HTTP/SSE 契约', hard: true },
+  { test: /^src\//, label: '后端行为' },
+  { test: /^web\//, label: '页面' },
+  { test: /^test\//, label: '自动化用例' },
+  { test: /^tools\//, label: '开发工具（gate）' },
+  { test: /^\.dsh\//, label: 'agent 流程与 skill' },
+  { test: /^docs\/adr\//, label: 'ADR（只追加）', hard: true },
+  { test: /^docs\//, label: '文档' },
+  { test: /^\.github\/workflows\//, label: 'CI 门禁', hard: true },
+  { test: /^package\.json$/, label: '依赖与脚本声明', hard: true },
 ];
 
-export function groupFiles(files) {
-  const groups = new Map();
-  for (const file of files) {
-    const normalized = file.replaceAll('\\', '/');
-    const layer = LAYERS.find((item) => item.test(normalized)) ?? { label: '其他' };
-    if (!groups.has(layer.label)) groups.set(layer.label, []);
-    groups.get(layer.label).push(normalized);
+// 超过这个数就不逐个文件列进正文，让它留在 Files changed 里。
+const FILE_LIMIT = 6;
+
+function rel(path) {
+  return String(path ?? '').replaceAll('\\', '/');
+}
+
+/** changes 是 { path, status }；files 是旧签名（纯路径）。 */
+function toChanges({ changes, files }) {
+  const raw = Array.isArray(changes) && changes.length > 0 ? changes : (files ?? []);
+  return raw
+    .map((item) => (typeof item === 'string' ? { path: rel(item) } : { path: rel(item.path), status: item.status }))
+    .filter((item) => item.path.length > 0)
+    .sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/** 改动形状：两个目录层的树，文件后面跟 git 状态。人扫一眼就知道动了哪块、加了还是改了。 */
+export function shapeTree(changes) {
+  if (changes.length === 0) return '（相对 base 没有文件改动）';
+
+  const roots = new Map();
+  for (const change of changes) {
+    const parts = change.path.split('/');
+    const rootName = parts.length === 1 ? '.' : `${parts[0]}/`;
+    if (!roots.has(rootName)) roots.set(rootName, []);
+    roots.get(rootName).push({
+      name: parts.length === 1 ? parts[0] : parts.slice(1).join('/'),
+      status: STATUS_LABEL[change.status] ?? '改动',
+    });
   }
-  return [...groups.entries()].sort((a, b) => LAYERS.findIndex((l) => l.label === a[0]) - LAYERS.findIndex((l) => l.label === b[0]));
+
+  const rootNames = [...roots.keys()].sort((a, b) => (a === '.' ? 1 : b === '.' ? -1 : a.localeCompare(b)));
+  const lines = [];
+  for (const rootName of rootNames) {
+    if (rootName !== '.') lines.push(rootName);
+    const items = roots.get(rootName).sort((a, b) => a.name.localeCompare(b.name));
+    items.forEach((item, index) => {
+      lines.push(`${index === items.length - 1 ? '└── ' : '├── '}${item.name}  ${item.status}`);
+    });
+  }
+  return lines.join('\n');
 }
 
-function gateLines(gate) {
-  const mark = (ok) => (ok ? 'x' : ' ');
-  const check = gate.check === 'pass';
-  const test = gate.test === 'pass';
-  const smoke = gate.smoke === 'pass';
-  const counts = gate.testCounts ? `${gate.testCounts.pass}/${gate.testCounts.total}` : '—';
-  return [
-    `- [${mark(check)}] \`npm run check\` 无输出`,
-    `- [${mark(test)}] \`npm test\` 全绿（${counts}）`,
-    `- [${mark(smoke)}] \`npm run smoke\` 退出码 0`,
-    '- [ ] CI 两个平台都绿（ubuntu + windows）',
-  ].join('\n');
+function shapeBlock(changes) {
+  if (changes.length === 0) return '';
+  return ['```text', shapeTree(changes), '```', ''].join('\n');
 }
 
-function changeTable(files) {
-  const groups = groupFiles(files);
-  if (groups.length === 0) return '（无文件改动）';
-  const rows = ['| 层 | 文件 | 改了什么 |', '|---|---|---|'];
-  for (const [label, list] of groups) {
-    for (const file of list) rows.push(`| ${label} | \`${file}\` | — |`);
+/** 怎么验的：只报这一次真的跑出来的数字，加动过哪些用例。 */
+function evidenceBlock({ gate, changes }) {
+  const counts = gate.testCounts ? `${gate.testCounts.pass}/${gate.testCounts.total}` : null;
+  const local = [
+    `check ${gate.check === 'pass' ? '无输出' : '见日志'}`,
+    `test ${counts ? `${counts} 全过` : gate.test === 'pass' ? '全过' : '见日志'}`,
+    `smoke ${gate.smoke === 'pass' ? '0' : '见日志'}`,
+  ].join(' · ');
+  const tests = changes.filter((change) => change.path.startsWith('test/'));
+  const rows = [`- 本地：${local}；CI 双平台还没跑`];
+  if (tests.length > 0) {
+    rows.push(`- 用例：${tests.map((change) => `\`${change.path}\`（${STATUS_LABEL[change.status] ?? '改动'}）`).join('、')}`);
   }
   return rows.join('\n');
+}
+
+/** 会影响谁：落了哪几层 + 回滚要不要付代价。一句话。 */
+function impactBlock({ changes }) {
+  const hits = [];
+  for (const change of changes) {
+    const area = AREAS.find((item) => item.test.test(change.path));
+    if (area && !hits.includes(area)) hits.push(area);
+  }
+  const labels = hits.map((hit) => hit.label).join('、') || '未识别（补一句谁在用）';
+  const hard = hits.filter((hit) => hit.hard).map((hit) => hit.label);
+  const rollback = hard.length > 0
+    ? `合错要先处理 ${hard.join('、')}，不是一次 revert 就干净。`
+    : '回滚就是一次 `git revert`。';
+  const noTests = changes.some((change) => change.path.startsWith('test/')) ? '' : '没动用例。';
+  return `${labels}。${rollback}${noTests}`;
+}
+
+/** 文件清单：少于 6 个直接列，多了折进 details，别让正文变成台账。 */
+function filesBlock(changes) {
+  if (changes.length === 0) return '（无文件改动）';
+  const rows = changes.map((change) => `| \`${change.path}\` | ${STATUS_LABEL[change.status] ?? '改动'} |`);
+  const table = ['| 文件 | 状态 |', '|---|---|', ...rows].join('\n');
+  if (changes.length <= FILE_LIMIT) return table;
+  return ['<details>', `<summary>改动文件（${changes.length} 个）</summary>`, '', table, '', '</details>'].join('\n');
+}
+
+function head({ changes, gate, what, how }) {
+  const shape = shapeBlock(changes);
+  const howBlock = how ? `\n## 怎么改的\n\n${how}\n` : '';
+  return `## 这改了什么
+
+${what}
+${shape ? `\n${shape}` : ''}${howBlock}
+## 怎么验的
+
+${evidenceBlock({ gate, changes })}
+
+## 会影响谁
+
+${impactBlock({ changes })}
+
+${filesBlock(changes)}
+`;
 }
 
 function pullNotesValue(notes, label) {
@@ -52,114 +133,63 @@ function pullNotesValue(notes, label) {
   return match ? match[1].trim() : null;
 }
 
-/** 票通道：七段。缺的部分宁可留占位符，也不编。 */
-export function ticketPrBody({ branch, ticket, ticketPath, files, gate, consent, commits }) {
+/** 票通道：这改了什么 = 票的"用户能做什么了"；后面接验收项、同意项、遗留。 */
+export function ticketPrBody({ branch, ticket, ticketPath, changes, files, gate, consent }) {
   const number = /(\d+)/.exec(branch)?.[1] ?? 'NN';
+  const list = toChanges({ changes, files });
   const notes = ticket?.notesText ?? '';
-  const goal = ticket?.whatToBuild ?? '（从票里复制一句话）';
-  const acceptance = (ticket?.acceptance ?? [])
-    .map((item) => `- [${item.checked ? 'x' : ' '}] ${item.text}`)
-    .join('\n') || '- [ ] ';
-
+  const acceptance = (ticket?.acceptance ?? []).map((item) => `- [${item.checked ? 'x' : ' '}] ${item.text}`).join('\n') || '- [ ] ';
   const consentLine = consent.size > 0
-    ? `- [x] 涉及：${[...consent].join('、')}（已获同意，答复见：____）`
-    : ticket?.declaresNoConsent
-      ? '- [x] 本票不涉及 §8 任何条目'
-      : '- [ ] 本票不涉及 §8 任何条目\n- [ ] 涉及：____（已获同意，答复见：____）';
+    ? `涉及 ${[...consent].join('、')}（已获同意，答复见：____）`
+    : ticket?.declaresNoConsent ? '不涉及 §8 任何条目' : '待填：不涉及 §8 / 涉及 ____（答复见 ____）';
 
-  const deviation = pullNotesValue(notes, '偏差') ?? '无';
-  const leftover = pullNotesValue(notes, '遗留') ?? '无';
-
-  return `## 这张票
-
-**票号**：\`${number}\`
-**票文件**：\`${ticketPath ?? `.scratch/proactive-companion-runtime/issues/${number}-*.md`}\`
-
-**目标（用户能做什么了）**：
-
-${goal}
-
-<!-- 由 tools/gate.js pr 生成。改动面第三列与"偏差与风险"需人补一句。 -->
-
-## 改动面
-
-${changeTable(files)}
-
+  return `${head({
+    changes: list,
+    gate,
+    what: ticket?.whatToBuild ?? '（从票里复制一句：用户现在能做什么了）',
+    how: null,
+  })}
 ## 验收项
 
 ${acceptance}
 
-## 门禁
+---
 
-${gateLines(gate)}
-
-## 偏差与风险
-
-- 偏差：${deviation}
-- 风险：无
-
-## 同意项
-
-${consentLine}
-
-## 遗留
-
-${leftover}
+**票**：\`${number}\` · \`${ticketPath ?? `.scratch/proactive-companion-runtime/issues/${number}-*.md`}\`
+**同意项**：${consentLine}
+**偏差**：${pullNotesValue(notes, '偏差') ?? '无'}
+**遗留**：${pullNotesValue(notes, '遗留') ?? '无'}
 `;
 }
 
-/** bug 通道：五段短版，内容来自 commit message 的 body。 */
-export function fixPrBody({ branch, files, gate, commits, commitBody }) {
+/** bug 通道：这改了什么 = 症状；怎么改的 = 根因 + 修法，来自 commit body。 */
+export function fixPrBody({ branch, changes, files, gate, commits, commitBody }) {
   const parsed = parseFixBody(commitBody ?? '');
+  const list = toChanges({ changes, files });
   const subject = commits.at(-1)?.subject ?? branch;
+  const how = [parsed['根因'] && `根因：${parsed['根因']}`, parsed['修法'] && `修法：${parsed['修法']}`]
+    .filter(Boolean)
+    .join('\n');
 
-  return `## 症状
+  return `${head({
+    changes: list,
+    gate,
+    what: parsed['症状'] ?? '（commit body 缺"症状"）',
+    how: how || null,
+  })}
+---
 
-${parsed['症状'] ?? '（commit body 缺"症状"）'}
-
-## 根因
-
-${parsed['根因'] ?? '（commit body 缺"根因"）'}
-
-## 改动
-
-${files.length > 0 ? files.map((file) => `- \`${file.replaceAll('\\', '/')}\``).join('\n') : '- （无文件改动）'}
-
-## 验证
-
-${parsed['验证'] ?? '（commit body 缺"验证"）'}
-
-- \`npm run check\` ${gate.check === 'pass' ? '无输出' : '见日志'} / \`npm test\` ${gate.testCounts ? `${gate.testCounts.pass}/${gate.testCounts.total}` : '—'} / \`npm run smoke\` ${gate.smoke === 'pass' ? '退出码 0' : '见日志'}
-
-## 风险与回归面
-
-${parsed['风险与回归面'] ?? parsed['修法'] ?? '无，改动局限于上面列出的文件'}
-
-关联：无票（/fix-bug 通道）— ${subject}
+无票（/fix-bug 通道）· ${subject}${parsed['验证'] ? `\n验证：${parsed['验证']}` : ''}
 `;
 }
 
-/** 既没票也不是 bug（chore/ docs/）：照实说改了哪些文件，不硬套两套模板。 */
-export function plainPrBody({ files, gate, commits }) {
-  const list = files.length > 0
-    ? files.map((file) => `- \`${file.replaceAll('\\', '/')}\``).join('\n')
-    : '- （无文件改动）';
-  return `## 改了什么
-
-${commits.length > 0 ? commits.map((commit) => `- ${commit.subject}`).join('\n') : '- —'}
-
-改动文件：
-
-${list}
-
-## 门禁
-
-${gateLines(gate)}
-
-## 风险与回归面
-
-无，改动局限于上面列出的文件。
-`;
+/** 其余（chore/ docs/）：这改了什么 = 这几条 commit 做了什么。 */
+export function plainPrBody({ changes, files, gate, commits }) {
+  const list = toChanges({ changes, files });
+  const what = commits.length > 0
+    ? commits.map((commit) => `- ${commit.subject.replace(/^[\w-]+\([^)]*\):\s*/, '')}`).join('\n')
+    : '（无 commit）';
+  return head({ changes: list, gate, what, how: null });
 }
 
 /** 从 commit body 里按"段落标题：内容"切。缺哪段就返回空对象，交给调用方提示。 */

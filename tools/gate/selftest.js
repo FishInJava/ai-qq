@@ -149,6 +149,51 @@ test('bug 通道的 commit body 能拆成五段', () => {
   assert.equal(parsed['修法'], '用返回值');
 });
 
+test('PR body 说人话：形状、验法、影响面三段，清单折起来', async () => {
+  const { buildPrBody } = await import('./ship.js');
+  const gate = { check: 'pass', test: 'pass', smoke: 'pass', testCounts: { pass: 112, total: 112 } };
+  const changes = [
+    { path: 'src/proactive/index.js', status: 'M' },
+    { path: 'test/s2/t09-proactive.test.js', status: 'M' },
+  ];
+
+  const body = buildPrBody({
+    branch: 'fix-anchor',
+    changes,
+    gate,
+    consent: new Set(),
+    commits: [{ subject: 'fix(proactive): 主动消息锚定校验在真实模型下永不通过' }],
+    commitBody: '症状：真实模型下每条主动消息都被丢弃\n根因：校验取锚点 id，模型返回的是文本\n修法：先按 id 匹配，匹配不到再按文本\n验证：test/s2/t09-proactive.test.js',
+  }).body;
+
+  assert.match(body, /^## 这改了什么\n\n真实模型下每条主动消息都被丢弃/, '开头要说人话：症状');
+  assert.match(body, /## 怎么改的\n\n根因：校验取锚点 id/);
+  assert.match(body, /index\.js {2}改动/, '形状里要带 git 状态');
+  assert.match(body, /## 怎么验的\n\n- 本地：check 无输出 · test 112\/112 全过 · smoke 0/);
+  assert.match(body, /用例：`test\/s2\/t09-proactive\.test\.js`（改动）/);
+  assert.match(body, /## 会影响谁\n\n后端行为、自动化用例。回滚就是一次/, '影响面要说清落了哪层、回滚多贵');
+  assert.doesNotMatch(body, /待补|—/, '别把占位符留给评审的人');
+
+  const many = buildPrBody({
+    branch: 'chore/gate',
+    changes: Array.from({ length: 8 }, (_, index) => ({ path: `tools/gate/f${index}.js`, status: 'A' })),
+    gate,
+    consent: new Set(),
+    commits: [{ subject: 'chore(tools): 改了点东西' }],
+  }).body;
+  assert.match(many, /<summary>改动文件（8 个）<\/summary>/, '文件多了就折进 details');
+  assert.match(many, /改了点东西/, 'chore 通道去掉 type(scope) 前缀，只留人话');
+
+  const migration = buildPrBody({
+    branch: 'chore/db',
+    changes: [{ path: 'src/store/migrations/0007-x.sql', status: 'A' }],
+    gate,
+    consent: new Set(),
+    commits: [{ subject: 'chore(store): 加一列' }],
+  }).body;
+  assert.match(migration, /合错要先处理 数据（SQL 与迁移）/, '碰迁移就不是一次 revert 的事');
+});
+
 test('PR body 按通道选版式：票七段 / bug 五段 / 其余照实列', async () => {
   const { buildPrBody } = await import('./ship.js');
   const gate = { check: 'pass', test: 'pass', smoke: 'pass', testCounts: { pass: 108, total: 108 } };
@@ -175,7 +220,8 @@ test('PR body 按通道选版式：票七段 / bug 五段 / 其余照实列', as
     commits: [{ subject: 'fix(http): 端口占用后仍打印旧端口' }],
     commitBody: '症状：打印 3000\n根因：读配置\n修法：用返回值\n验证：t17',
   });
-  assert.match(fix.body, /## 症状\n\n打印 3000/);
+  assert.match(fix.body, /^## 这改了什么\n\n打印 3000/);
+  assert.match(fix.body, /无票（\/fix-bug 通道）/);
 
   const chore = buildPrBody({
     branch: 'chore/agent-gate',
@@ -184,6 +230,12 @@ test('PR body 按通道选版式：票七段 / bug 五段 / 其余照实列', as
     consent: new Set(),
     commits: [{ subject: 'chore(tools): 新增 gate' }],
   });
-  assert.match(chore.body, /## 改了什么/);
+  assert.match(chore.body, /^## 这改了什么\n\n- 新增 gate/, 'chore 通道去掉 type(scope) 前缀');
   assert.doesNotMatch(chore.body, /缺症状/, 'chore 分支不该被套进 bug 版式');
+
+  for (const [name, result] of [['票', ticket], ['bug', fix], ['chore', chore]]) {
+    assert.match(result.body, /^## 这改了什么\n/, `${name}通道的 PR 没从人话打头`);
+    assert.match(result.body, /## 怎么验的/);
+    assert.match(result.body, /## 会影响谁/);
+  }
 });

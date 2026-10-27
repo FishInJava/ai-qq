@@ -20,7 +20,7 @@ metadata:
 | 自动检查 | `check` | `npm run check` → `npm test` → `npm run smoke`，与 CI 同一道门 |
 | 合规扫描 | `compliance` | G01–G28：Rule.md 里人肉才看得出的条款 |
 | 格式化提交 | `format` + `commit` | 安全收敛 + 规范 message + 显式 `git add` |
-| 创建 PR | `pr` | 七段 / 五段 body 自动生成；`--push --create` 才真的动网 |
+| 创建 PR | `pr` | 三段人话（这改了什么 / 怎么验的 / 会影响谁）+ 票的验收项；`--push --create` 才真的动网 |
 
 **门禁只有一道。** `check` 阶段跑的就是 `package.json` 里那三条命令，不是另写一套"轻量检查"。
 本地绿不等于 CI 绿（平台差异），但本地红一定不能提 PR。
@@ -31,6 +31,8 @@ metadata:
 2. **合并是人的动作。** `tools/gate.js` 里没有 `gh pr merge`。你也不许敲（`Rule.md §7-22`）。
 3. **同意项不能靠 flag 蒙过去。** `--consent=A8` 只是让你继续，PR 里仍要贴人的答复原文（`Rule.md §8`）。
 4. **不替人编内容。** bug 通道缺"症状/根因/修法/验证"四段，`commit` 直接拒绝，不生成占位文案。
+5. **PR 写人话。** 判据是 `.dsh/skills/pr/SKILL.md`：这改了什么 / 怎么验的 / 会影响谁，三段说完。
+   数字必须来自这一次跑出来的门禁，不编 before、不写"已完美实现"。
 
 ## 五段怎么跑
 
@@ -149,13 +151,27 @@ node tools/gate.js pr --push                # 推分支
 node tools/gate.js pr --push --create       # 推 + 开 PR
 ```
 
-body 写到 `.git/gate-pr-body.md`（不入库）：
+body 写到 `.git/gate-pr-body.md`（不入库）。**三段人话打头**（判据：`.dsh/skills/pr/SKILL.md`），
+后面接票的验收项、同意项、遗留——`Workflow.md` §9 要的东西一条不少，标题换成了人话：
 
-- 票分支 → 七段（这张票 / 改动面 / 验收项 / 门禁 / 偏差与风险 / 同意项 / 遗留），验收项和 Notes 里的偏差、遗留直接从票里抓。
-- `fix-` 分支 → 五段（症状 / 根因 / 改动 / 验证 / 风险与回归面），内容来自 commit body。
-- `chore/` `docs/` → 照实列改动文件与 commit 标题，不硬套前两套。
+```markdown
+## 这改了什么        ← 票的"用户能做什么了" / bug 的症状 / chore 的 commit 标题 + 一张改动树
+## 怎么验的          ← 本地 check/test/smoke 这一次的结果 + 动过哪些用例
+## 会影响谁          ← 落了哪几层 + 回滚要不要付代价
+```
 
-它会在生成 body 前**再跑一遍门禁**：PR 里的勾选必须是刚跑出来的，不是回忆出来的。
+文件超过 6 个，清单折进 `<details>`，正文只留树的形状。改动树带 git 状态（新增/改动/删除/重命名），
+不是一排破折号。
+
+生成完先读一遍。哪句不像人话就直接改文件，别加参数：
+
+```powershell
+node tools/gate.js pr                      # 生成并预览
+notepad .git/gate-pr-body.md               # 改到顺眼
+node tools/gate.js pr --push --create      # 推 + 开（会重新生成，所以先改完再开）
+```
+
+它会在生成 body 前**再跑一遍门禁**：PR 里的数字必须是刚跑出来的，不是回忆出来的。
 开 PR 之前它还会拦三件事：工作区不干净、commit 标题不合规范、票没关（`Status: done` + 验收项全勾 + 有 `## Notes`）。
 
 **最后一步永远是人的**：看 diff、看 CI 双平台、点 squash merge。合并完你再 `git switch main && git pull --ff-only`。
@@ -195,7 +211,7 @@ body 写到 `.git/gate-pr-body.md`（不入库）：
 ## 自检
 
 ```powershell
-node tools/gate.js selftest     # 15 条：规则命中/不命中、格式化边界、票解析、PR 版式
+node tools/gate.js selftest     # 16 条：规则命中/不命中、格式化边界、票解析、PR 三段人话
 ```
 
 改了 `tools/gate/rules.js` 的规则，先给 `selftest.js` 加一条用例，再改规则。
