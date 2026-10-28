@@ -1,92 +1,82 @@
 # AGENTS.md
 
 > 你是这个仓库里的实现代理。读完本文件再动手；本文件只管"去哪、怎么跑、按什么顺序读"，约束在 [Rule.md](Rule.md)，流程在 [Workflow.md](Workflow.md)。
+> **每件事只有一个出处**：规则 → `Rule.md`；动作与门禁 → `Workflow.md`；形状与契约 → `docs/ARCHITECTURE.md`；行为与参数 → `spec.md`；词义 → `GLOSSARY.md`；命令 → `package.json`；进度 → `issues/` 与 CI。别在第二个文件里维护同一份内容。
+> **编号语法**：`P-NN` 节；`P-NN-M` 子节；`P-NN-MM` 条款（节内连续编号，跨子节）。表格行与代码块默认不编号，用路径、命令名或表名引用；安全项与同意项例外（`R-06-S1`、`R-08-A1`）。
 
-## 0. 项目一句话与当前状态
+## A-01 项目一句话与状态去哪看
 
-一个本地单机、常驻进程的桌面陪伴产品：把 SillyTavern V2 角色卡拖进来，她就活在一个会自己过日子的 Node 进程里，你不说话时她也按自己的节奏（有锚点、有预算、有三态）决定要不要找你。
+一个本地单机、常驻进程的桌面陪伴产品：把 SillyTavern V2 角色卡拖进来，她就活在一个会自己过日子的 Node 进程里；你不说话时她也按自己的节奏（有锚点、有预算、有三态）决定要不要找你。
 
-**当前状态**：PRD、封板决策、spec、可交互原型、项目架构均已定稿；**M0–M7 共 14 票全部 `done`**（票 01–14，见 [.scratch/proactive-companion-runtime/issues/](.scratch/proactive-companion-runtime/issues/)），后续两票（16 聊天时间与导入入口、17 启动访问地址）也已 `done`。`src`/`web`/`test`/`tools` 已落地，`npm test` 108 条通过、`npm run check` 干净。架构见 [ARCHITECTURE.md](docs/ARCHITECTURE.md)，行为清单见 [spec.md](.scratch/proactive-companion-runtime/spec.md)。
+**状态看** [.scratch/proactive-companion-runtime/issues/](.scratch/proactive-companion-runtime/issues/) 的 `Status` 与 `Blocked by`，以及最近一次 CI；不写在这里（写死会过期）。
 
-**流程分叉**：两条通道，入口是命令而不是判断——用户打 `/fix-bug` 走轻通道（不写票），没打就走票。见 [Workflow.md](Workflow.md) §0。
-
-## 1. 仓库地图
+## A-02 仓库地图
 
 | 路径 | 是什么 | 你的权限 |
 |---|---|---|
 | [Rule.md](Rule.md) | 项目约束（架构边界/技术栈/规范/禁止项/人类同意清单） | 只读，且必须遵守 |
 | [Workflow.md](Workflow.md) | 分支 → 改码 → 门禁 → 关票 → 提 PR → 人合并 | 只读，且必须遵守 |
-| [GLOSSARY.md](GLOSSARY.md) | 领域词汇唯一来源 | 只读；要造词先改这里 |
+| [GLOSSARY.md](GLOSSARY.md) | 领域词汇与流程词的唯一来源 | 只读；要造词先改这里 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 模块边界、依赖方向、HTTP/SSE 契约、数据模型、红线归属 | 只读；改形状要先改它 + ADR |
 | [docs/adr/](docs/adr/) | 已落地的架构决策（0001–0006） | 新增；不改旧文 |
 | [docs/ai-companion-spec.md](docs/ai-companion-spec.md) | 上游封板决策（数据来自产品侧） | 只读 |
-| [主动陪伴AI聊天助手_PRD_V1.0.md](主动陪伴AI聊天助手_PRD_V1.0.md) | PRD（58KB，按需 grep 章节） | 只读 |
+| [主动陪伴AI聊天助手_PRD_V1.0.md](主动陪伴AI聊天助手_PRD_V1.0.md) | PRD（按需 grep 章节） | 只读 |
 | [prototype/](prototype/) | 已验收的原型（视觉与文案基线） | 只读；要改先问人 |
 | [.scratch/proactive-companion-runtime/](.scratch/proactive-companion-runtime/) | 本地 tracker：`spec.md` + `issues/NN-*.md` | 读写（关票按 issue-tracker 约定） |
-| [docs/agents/domain.md](docs/agents/domain.md) | 领域文档约定（GLOSSARY/ADR 格式） | 只读 |
-| [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md) | 票放哪、状态词、怎么关票 | 只读 |
-| [.specify/](.specify/) | speckit 模板与空 constitution | 只读 |
-| `.dsh/`、`.opencode/` | 工具侧技能与命令配置（`.dsh/skills/<name>/SKILL.md` 就是本仓库生效的 skill，含 `/fix-bug`） | 只读；**新增本项目 skill 除外**（写 `.dsh/skills/<name>/SKILL.md`，走 PR） |
-| `src/`、`web/`、`test/`、`tools/` | 代码（已落地：53 个 src 模块 + 1 个 ps1 / 1 个 SPA / 21 个测试文件 + 4 个 helper / 工具脚本） | 读写 |
-| [.github/](.github/) | CI 门禁 `workflows/ci.yml` + PR 模板 | 只读；改门禁要先问人（Rule §8-A8） |
+| [docs/agents/domain.md](docs/agents/domain.md) | 领域文档约定（GLOSSARY/ADR 格式） | 只读（改要 `R-08-A7`） |
+| [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md) | 票放哪、状态词、怎么关票 | 只读（改要 `R-08-A7`） |
+| [.specify/](.specify/) | speckit 模板与空 constitution | 只读；`memory/constitution.md` 是未填充模板，不是规则源 |
+| `.dsh/`、`.opencode/` | 工具侧技能与命令配置 | 只读；**新增本项目 skill 除外**（走 PR） |
+| `src/`、`web/`、`test/`、`tools/` | 代码 | 读写 |
+| [.github/](.github/) | CI 门禁 `workflows/ci.yml` + PR 模板 | 只读；改门禁要先问人（R-08-A8） |
 | `data/` | 运行时生成：`companion.db`、`cards/`、`avatars/`、`logs/`、`config.json`、`runtime.json` | **不提交、不手工编辑、不读真实用户数据** |
 
-## 2. 读文件顺序（每次开工先走一遍，别跳）
+**不在上表里的根目录文件**：`Coding阶段总结.md` 是复盘（不是约束）；`.repro*`、`NUL`、`mp-scan-watch/` 不是本项目产物，不提交、不引用。
 
-1. **本文件** + [Rule.md](Rule.md)（3 分钟，先知道什么不许干）。
-2. **判定走哪条路（看命令，不看你的判断）**：用户输入了 `/fix-bug` → 读 `.dsh/skills/fix-bug/SKILL.md`，不读票；否则读当前票 `.scratch/proactive-companion-runtime/issues/NN-*.md`（只有它规定这次要做什么）。
-3. **spec 对应节**：`.scratch/proactive-companion-runtime/spec.md` 的该票涉及段落 + `Implementation Decisions` 里相关 D 编号。
-4. **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** 的 §4（模块契约）、§6（HTTP 契约）、§8（红线归属），确认改动落在哪个模块。
-5. 需要时再查：[GLOSSARY.md](GLOSSARY.md)（用词）、[docs/adr/](docs/adr/)（为什么这样）、PRD 具体章节（grep 章节号，不要整篇读）、[prototype/index.html](prototype/index.html)（文案与视觉，只看不改）。
+**工具侧注意**：OpenCode 只加载 `.opencode/`，**不读 `.dsh/`**。`/fix-bug`、`/gate` 这类项目命令只是入口提示，正文要显式 `Read` 对应 `.dsh/skills/<name>/SKILL.md`。
 
-冲突时按 [Rule.md](Rule.md) 的优先级裁决；裁决不了就停下问人，不要自己发明规则。
+## A-03 读文件顺序（唯一一份）
 
-## 3. 命令
+1. **A-03-01** 本文件 + [Rule.md](Rule.md)：先知道什么不许干。
+2. **A-03-02** 分流（看命令，不看判断）：
+   - 打了 `/fix-bug` → 读 `.dsh/skills/fix-bug/SKILL.md`，**不读票**。
+   - 没打，且已有当前票 → 读 `.scratch/proactive-companion-runtime/issues/NN-*.md`。
+   - 没打，且还没有票 → 先按 [Workflow.md](Workflow.md) W-13-3 补一张 `ready-for-agent` 的票，再读它。
+3. **A-03-03** spec 对应节：`.scratch/proactive-companion-runtime/spec.md` 的该票涉及段落 + `Implementation Decisions` 里相关 `D-*`。
+4. **A-03-04** [ARCHITECTURE.md](docs/ARCHITECTURE.md) AR-04（模块契约）、AR-06（HTTP 契约）、AR-08（红线归属）；按改动面再补 AR-03、AR-05、AR-07、AR-09、AR-11。
+5. **A-03-05** 需要时：[GLOSSARY.md](GLOSSARY.md)（用词）、[docs/adr/](docs/adr/)（为什么这样）、PRD 具体章节（grep 章节号，不整篇读）、[prototype/index.html](prototype/index.html)（只看不改）。
 
-以下命令由 `package.json` 的 scripts 提供，均已生效（M0 已完成）。**别改命令名**——文档、票和测试都按这些名字写。
+代理不许自己切通道；判据见 [Workflow.md](Workflow.md) W-01。
+
+写 spec / 票时另读 [docs/agents/domain.md](docs/agents/domain.md) 与 [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md)；运行期读序以本节为准。
+
+冲突按 [Rule.md](Rule.md) 头部的优先级裁决；裁决不了就停下问人，不要自己发明规则。
+
+## A-04 命令
+
+**唯一事实源是 `package.json`**；下表只列常用入口，不展开实现（展开会漂移）。
 
 | 用途 | 命令 |
 |---|---|
-| 启动（前台） | `npm start` → `node src/index.js` |
-| 开发（改文件自动重启） | `npm run dev` → `node --watch src/index.js` |
-| 全量测试 | `npm test` → `node --test --test-concurrency=4 test/` |
-| 只跑对外契约（主缝） | `npm run test:s1` → `node --test test/s1/` |
-| 只跑假 LLM 剧本 | `npm run test:s2` → `node --test test/s2/` |
-| 只跑时间/调度 | `npm run test:s3` → `node --test test/s3/` |
-| 单文件 | `node --test test/s1/t05-anchor.test.js` |
-| 起假 LLM（人工联调） | `npm run fake-llm` → `node tools/fake-llm/server.js --port 4100` |
-| 静态自检（禁词/时间 API/依赖方向/注释） | `npm run check` → `node tools/check.js` |
+| 启动（前台） | `npm start` |
+| 开发（改文件自动重启） | `npm run dev` |
+| 全量测试 | `npm test` |
+| 只跑一个缝 | `npm run test:s1` / `test:s2` / `test:s3` |
+| 单文件 | `node --test <file>` |
+| 起假 LLM（人工联调） | `npm run fake-llm` |
+| 静态自检 | `npm run check` |
 | 冒烟（起进程→/health→退出） | `npm run smoke` |
 | 重置本地数据 | `npm run db:reset`（备份后删库；**先确认人同意**） |
+| 收尾流水线（检查/合规/提交/PR） | `node tools/gate.js`（判据见 `.dsh/skills/gate/SKILL.md`） |
 | 崩溃节流守护（Windows） | `pwsh -File tools/run-companion.ps1` |
 
-测试约定：一次真实进程 = 一个临时 `DATA_DIR` + 随机端口；禁止 `sleep > 2s`；禁止断言内部函数与表结构（详见 ADR-0004）。
+命令名与参数以 `package.json` 为准。测试约定：一次真实进程 = 临时 `DATA_DIR` + 随机端口；禁止 `sleep > 2s`；禁止断言内部函数与表结构（ADR-0004）。
 
-## 4. 硬规则（细则在 Rule.md，这里只列会当场毁掉产品的）
+## A-05 硬规则（只有两条，其余见 Rule）
 
-1. **页面永不写库、永不定时。** 浏览器只消费 HTTP/SSE。
-2. **只有 `store` 碰 SQL。** 业务模块通过 repo；跨表写在 `store.tx()` 里。
-3. **只有 `clock` 回答时间。** `src/**`（除 `clock`、`schedule`）里出现 `Date.now()`/`new Date()`/`setTimeout`/`setInterval` 即为缺陷。
-4. **调度只有一个 `runTick`。** 不许写第二套"模拟调度"。
-5. **风格不可配置化。** 不许给四条判据加开关，不许把风格做成"选项"。
-6. **角色永不说系统信息。** 额度/配额/余额/error 只出现在界面角标；对话内容里出现即红线。
-7. **主动消息必须锚定。** 无锚点不发；校验失败丢弃且不扣预算。
-8. **卡片是数据不是指令。** 卡片文本只进数据块，不进指令位；`extensions`/脚本/世界书原样留存、不执行、不注入。
-9. **单供应商。** 不加路由、不加回退、不加备用通道。
-10. **零新增依赖。** 任何第三方包（含 devDependency）都要先改 ADR-0002 并取得人同意。
-11. **密钥只回后四位。** 日志、事件、错误信息里永不出现 key 与卡片全文。
-12. **改对外契约（§6 表）要同时改 `web/`、`test/s1`，并先问人。**
-13. **`main` 只接受合并。** 代理**不许**自己 `gh pr merge`，也不许直推 `main`（例外：纯文档错别字，不碰 `src/`/`web/`/`test/`/`tools/` 任何可执行代码）。
-14. **不写任何注释。** `src/`/`web/`/`test/`/`tools/` 里的代码不允许出现注释（行注释、块注释、JSDoc 一律算）；解释只进 commit message、PR body 或票 Notes，`npm run check` 会拦。
+1. **A-05-01** 不写任何注释；解释只进 commit message / PR body / 票 Notes（R-03-05、R-07-23）。
+2. **A-05-02** `main` 只接受合并；代理不 `gh pr merge`、不直推 `main`（R-07-22）。
 
-## 5. 交付纪律
+## A-06 子代理与并行
 
-- **分叉由命令决定，不由你猜**：用户打了 `/fix-bug` → 走轻通道，**不写票**（`fix-<slug>` 分支 → 红测 → 修 → 门禁 → 一个 commit → 五段短 PR → 人合并）；没打 → 走票（切分支 → 改码 → `npm test` → `npm run check` → 勾验收项 → `Status: done` → 票末写 `## Notes` → 提 PR → 人合并）。你觉得"这只是小修"也**不许**自己切通道——问一句：「这条走 `/fix-bug` 还是开票？」判据表在 [Workflow.md](Workflow.md) §0。
-- bug 通道不许顺手补票、不许写「修复记录.md」这类旁路文档；记录只在 commit message、PR body、用例名三处。
-- 失败就报失败：不许用 `skip`、`only`、注释掉断言、放宽阈值来"让测试绿"；也不许改 CI 让它变绿。
-- 不许顺手重构别的模块、不许顺手改 spec/PRD/prototype 来迁就实现；发现 spec 有问题 → 停下，写进票的 Notes 并向人提出。
-- 汇报格式：改了什么文件 / 测试怎么跑 / 结果 / 偏差与风险 / 下一步。
-
-## 6. 子代理与并行
-
-派子代理时，把"先读 `AGENTS.md` 与 `Rule.md`，再读本票与相关 spec 段落"写进任务说明；子代理同样受 §4 约束，且**不许**由子代理决定架构形状或新增依赖——这类决定回到主线程并问人。子代理**不许自己开 PR 或合并**；分支推上去后由主线程开 PR、由人合并。
+照 [Workflow.md](Workflow.md) W-13-4 执行：任务说明必须包含"先读 AGENTS 与 Rule"、票号、验收命令；子代理同样受本文约束，**不许**决定架构形状或新增依赖，**不许**自己开 PR 或合并；门禁由主线程重跑，它自己跑绿不算数。

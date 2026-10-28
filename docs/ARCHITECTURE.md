@@ -6,7 +6,7 @@
 
 ---
 
-## 1. 系统一句话与硬边界
+## AR-01 系统一句话与硬边界
 
 一个 Node 常驻进程，同时是**唯一 HTTP 服务**、**唯一调度宿主**、**唯一 SQLite 写入者**。页面是纯消费者：打开看得见，关掉进程照常过日子。
 
@@ -27,31 +27,31 @@
 
 四条不可谈判的边界：
 
-1. **页面永不写库、永不承担定时。** 浏览器刷新/关闭/崩溃不影响任何调度状态。
-2. **只有 `store` 碰 SQL。** 其他模块通过 repo 函数读写，拿不到 `db` 句柄。
-3. **只有 `clock` 回答"现在几点、跨日没有"。** 业务模块禁止直接 `Date.now()` / `new Date()`。
-4. **只有 `http` 说人话给界面。** 业务模块抛 `AppError(code)`，中文文案与 HTTP 状态码在 `http` 层映射。
+1. **AR-01-01** 页面永不写库、永不承担定时。 浏览器刷新/关闭/崩溃不影响任何调度状态。
+2. **AR-01-02** 只有 `store` 碰 SQL。 其他模块通过 repo 函数读写，拿不到 `db` 句柄。
+3. **AR-01-03** 只有 `clock` 回答"现在几点、跨日没有"。 业务模块禁止直接 `Date.now()` / `new Date()`。
+4. **AR-01-04** 只有 `http` 说人话给界面。 业务模块抛 `AppError(code)`，中文文案与 HTTP 状态码在 `http` 层映射。
 
 ---
 
-## 2. 架构决策索引
+## AR-02 架构决策索引
 
 已封板的业务决策在 spec 里（D-0…D-15、PRD 4.4）。本文只记录**落地形状**上的决策，逐条对应 ADR：
 
 | # | 决策 | ADR |
 |---|---|---|
-| A1 | 单进程单入口，页面纯消费者，单写入者 | 0001 |
-| A2 | 零运行时第三方依赖；`node:sqlite` 取代 `better-sqlite3`；纯 JS + JSDoc，无构建 | 0002 |
-| A3 | 时钟与 `runTick` 各只有一个注入点 | 0003 |
-| A4 | HTTP/SSE 是唯一测试缝；测试栈 = `node:test` + `fetch` + 假 LLM 进程 | 0004 |
-| A5 | 卡片无损往返 = 原始字节往返（存原文、复用原图） | 0005 |
-| A6 | 无 Electron；托盘与自启走 PowerShell 辅助进程 | 0006 |
+| AR-02-1 | 单进程单入口，页面纯消费者，单写入者 | 0001 |
+| AR-02-2 | 零运行时第三方依赖；`node:sqlite` 取代 `better-sqlite3`；纯 JS + JSDoc，无构建 | 0002 |
+| AR-02-3 | 时钟与 `runTick` 各只有一个注入点 | 0003 |
+| AR-02-4 | HTTP/SSE 是唯一测试缝；测试栈 = `node:test` + `fetch` + 假 LLM 进程 | 0004 |
+| AR-02-5 | 卡片无损往返 = 原始字节往返（存原文、复用原图） | 0005 |
+| AR-02-6 | 无 Electron；托盘与自启走 PowerShell 辅助进程 | 0006 |
 
 不在 ADR 里重复、但同样不可改的封板项：记忆不向量化（spec D-8）、账本单调续额（D-11）、单供应商不回退（D-5）、主动消息上下文 ≤2000 且 ≤ 对话 1/3（D-6）、风格不可配置化（D-7）。
 
 ---
 
-## 3. 目录骨架
+## AR-03 目录骨架
 
 ```
 /（仓库根 = 工作目录）
@@ -106,9 +106,9 @@
 
 ---
 
-## 4. 模块契约（实现时照签名写）
+## AR-04 模块契约（实现时照签名写）
 
-### 4.1 依赖方向（单向，违者视为架构破坏）
+### AR-04-1 依赖方向（单向，违者视为架构破坏）
 
 ```
 runtime ──> http, schedule, living, store, session, bus
@@ -130,13 +130,13 @@ bus     ──> 无
 
 禁止清单（`Rule.md` 有对应条目与审核方式）：
 
-- 业务模块 import `http/*`（反向调用）——**唯一**允许的是 `http` import 业务模块。
-- 业务模块拿 `db` 句柄直接跑 SQL（绕过 repo）。
-- `src/**` 里出现 `Date.now()` / `new Date()` / `setTimeout`（`clock` 与 `schedule` 除外）。
-- `llm` 里出现供应商分支、多端点、自动回退。
-- `web` 里出现任何写库或 tick 逻辑。
+- **AR-04-01** 业务模块 import `http/*`（反向调用）——**唯一**允许的是 `http` import 业务模块。
+- **AR-04-02** 业务模块拿 `db` 句柄直接跑 SQL（绕过 repo）。
+- **AR-04-03** `src/**` 里出现 `Date.now()` / `new Date()` / `setTimeout`（`clock` 与 `schedule` 除外）。
+- **AR-04-04** `llm` 里出现供应商分支、多端点、自动回退。
+- **AR-04-05** `web` 里出现任何写库或 tick 逻辑。
 
-### 4.2 `clock`
+### AR-04-2 `clock`
 
 ```js
 // src/clock/index.js
@@ -151,7 +151,7 @@ clock.setTimer(fn, ms) / clearTimer(id)  // 生产=setTimeout；测试=可控堆
 
 生产实现 `systemClock`；测试实现 `fakeClock.advance(ms)`。`life_events.event_date` 与 `daily_budget.date` 是唯二本地日期列，换算只发生在 `clock.localDay()`。
 
-### 4.3 `store`
+### AR-04-3 `store`
 
 ```js
 // src/store/index.js
@@ -162,13 +162,13 @@ store.read(fn)                  // 只读包装（可选快照）
 store.close()
 ```
 
-- 迁移文件 `src/store/migrations/NNNN-*.sql`，只追加不改写；`schema_version` 存当前版本。
-- 崩溃安全：WAL + 事务；启动时 `PRAGMA integrity_check`，失败则把库改名为 `companion.corrupt-<ts>.db` 并拒绝启动（保留现场）。
-- repo 按表拆分，每个函数只做一件事、只碰自己那张表；跨表操作写在业务模块的 `store.tx()` 里。
+- **AR-04-06** 迁移文件 `src/store/migrations/NNNN-*.sql`，只追加不改写；`schema_version` 存当前版本。
+- **AR-04-07** 崩溃安全：WAL + 事务；启动时 `PRAGMA integrity_check`，失败则把库改名为 `companion.corrupt-<ts>.db` 并拒绝启动（保留现场）。
+- **AR-04-08** repo 按表拆分，每个函数只做一件事、只碰自己那张表；跨表操作写在业务模块的 `store.tx()` 里。
 
 repo 函数命名约定：`insert*` / `get*` / `list*` / `update*` / `delete*` / `count*` / `agg*`。返回普通对象（camelCase），不返回 Statement。
 
-### 4.4 `session`（状态机唯一入口）
+### AR-04-4 `session`（状态机唯一入口）
 
 ```js
 // src/session/state.js
@@ -186,7 +186,7 @@ canGenerate(sessionId)             // state === 'active' | 'paused'（dormant �
 
 迁移只能走 `transition()`；每次成功迁移写 `state_change` 事件（bus + 日志）。非法迁移（如 `dormant → paused`）丢弃并记 warn，不改库。重启是自环：状态不变，仅对**从未对话过**（`last_user_msg_at` 与 `last_proactive_at` 均为空）的会话置 `cold_start_silenced = 1`。
 
-### 4.5 `llm`
+### AR-04-5 `llm`
 
 ```js
 // src/llm/index.js
@@ -196,12 +196,12 @@ llm.chatOnce({ messages, timeoutMs })                // { text, usage }（非流
 llm.json({ system, user, schema, timeoutMs })        // 强制 JSON，schema 校验，失败抛 AppError('llm_bad_json')
 ```
 
-- 端点固定 `POST {base_url}/chat/completions`，`stream: true` 时带 `stream_options: { include_usage: true }`。
-- `chat`：超时 30s，可重试状态码（429/500/502/503/504）重试 2 次，退避 1s/3s；4xx 鉴权类不重试。
-- `utility`：超时 10s，不重试；输入 ≤4k token；输出必须过 schema。
-- 端点不可用 = 产品不可用：抛 `AppError('llm_unavailable', { retryable: false })`，上层把受影响会话转 `paused`。**没有降级通道、没有第二供应商。**
+- **AR-04-09** 端点固定 `POST {base_url}/chat/completions`，`stream: true` 时带 `stream_options: { include_usage: true }`。
+- **AR-04-10** `chat`：超时 30s，可重试状态码（429/500/502/503/504）重试 2 次，退避 1s/3s；4xx 鉴权类不重试。
+- **AR-04-11** `utility`：超时 10s，不重试；输入 ≤4k token；输出必须过 schema。
+- **AR-04-12** 端点不可用 = 产品不可用：抛 `AppError('llm_unavailable', { retryable: false })`，上层把受影响会话转 `paused`。**没有降级通道、没有第二供应商。**
 
-### 4.6 `bus`（进程内广播）
+### AR-04-6 `bus`（进程内广播）
 
 ```js
 bus.emit(topic, payload)      // message | state | quota | tick | import | log
@@ -210,7 +210,7 @@ bus.subscribe(fn) -> unsubscribe
 
 只做单向广播，不带请求上下文；`http` 订阅后转成 SSE 帧。业务模块不感知 SSE 存在。
 
-### 4.7 `schedule`（唯一调度实现）
+### AR-04-7 `schedule`（唯一调度实现）
 
 ```js
 // src/schedule/index.js
@@ -228,7 +228,7 @@ stopScheduler()
 
 剪枝顺序、意愿公式、6 小时硬触发见 spec D-3，**逐条照抄，不许重排**。定时器只负责"到点调用 `runTick`"；所有决策都在 `runTick` 内部，测试用 `manual` 触发同一函数。单次 tick 不排队：上一轮未结束时跳过本次。
 
-### 4.8 `proactive`
+### AR-04-8 `proactive`
 
 ```js
 buildAnchors(sessionId)        // 有序集合（事件 + pending facts），截断 5
@@ -239,7 +239,7 @@ commit(sessionId, msg, anchor) // 事务：写 messages/proactive_log/life_event
 
 校验三条全过才提交：`anchor.id` 在集合内、`anchor.type` 与来源一致、正文提到锚点里的具体东西（`fact.value` / `key` 原文出现；事件正文与正文有 ≥3 个连续汉字重合，或共用一个 4 字母以上的实词）。事件不要求原样复述整句——中文长句没有可切分的标点，整句匹配在真实模型下永不通过。任一条失败：丢弃、不扣预算、写 `proactive_drop{reason}`。
 
-### 4.9 `chat` / `style`
+### AR-04-9 `chat` / `style`
 
 ```js
 // chat
@@ -251,11 +251,11 @@ systemPrompt(character, { pauseGapHours, recovered, coldStart })
 postProcess(text)                      // 切气泡、黑名单、超长截断 → { bubbles, flags }
 ```
 
-- `chat` 上下文预算 = `min(chat_model_window * 0.5, 8000)`（可配）；裁剪顺序：丢最旧原文 → 丢超 5 条 facts → 摘要永不丢。
-- `proactive` 上下文硬闸 2000 且 ≤ 对话预算 1/3，六项分配照 PRD 3.8.8。
-- 卡片文本进提示词时统一包在数据块里（`<card_data field="description">…</card_data>`），系统指令与数据块分开标注，**永不拼接成指令位**。
+- **AR-04-13** `chat` 上下文预算 = `min(chat_model_window * 0.5, 8000)`（可配）；裁剪顺序：丢最旧原文 → 丢超 5 条 facts → 摘要永不丢。
+- **AR-04-14** `proactive` 上下文硬闸 2000 且 ≤ 对话预算 1/3，六项分配照 PRD 3.8.8。
+- **AR-04-15** 卡片文本进提示词时统一包在数据块里（`<card_data field="description">…</card_data>`），系统指令与数据块分开标注，**永不拼接成指令位**。
 
-### 4.10 其余模块
+### AR-04-10 其余模块
 
 | 模块 | 公开面 | 备注 |
 |---|---|---|
@@ -268,7 +268,7 @@ postProcess(text)                      // 切气泡、黑名单、超长截断 �
 
 ---
 
-## 5. 数据模型（12 表）
+## AR-05 数据模型（12 表）
 
 权威 DDL 落在 `src/store/migrations/0001-init.sql`（M0 交付）。本文只定职责、关键列与约束，**spec D-14 的三处修正与两处增补在此生效**。
 
@@ -306,19 +306,19 @@ erDiagram
   life_events ||--o| messages : "used_by_msg_id"
 ```
 
-- 删除 `scope=card`：删 `characters` + 头像 + 原卡文件，保留会话与记录（会话置 `paused`）。
-- 删除 `scope=records`：先置 `paused`，再级联删 `messages/facts/summaries/life_events/proactive_log/scheduler_state/token_ledger/daily_budget`。
-- 生命周期清理（启动时执行）：`scheduler_state` >180 天、`world_feeds` >90 天；`messages` 永不自动删。
+- **AR-05-01** 删除 `scope=card`：删 `characters` + 头像 + 原卡文件，保留会话与记录（会话置 `paused`）。
+- **AR-05-02** 删除 `scope=records`：先置 `paused`，再级联删 `messages/facts/summaries/life_events/proactive_log/scheduler_state/token_ledger/daily_budget`。
+- **AR-05-03** 生命周期清理（启动时执行）：`scheduler_state` >180 天、`world_feeds` >90 天；`messages` 永不自动删。
 
 时间格式：除 `life_events.event_date`、`daily_budget.date`、`world_feeds.date` 三个本地日期列外，全部 UTC ISO8601。
 
 ---
 
-## 6. 对外契约（唯一测试缝）
+## AR-06 对外契约（唯一测试缝）
 
 全部挂在 `127.0.0.1`，前缀 `/api`。请求/响应 JSON；错误统一 `{ error: { code, message } }`，`message` 是给界面看的中文，**永不含密钥、堆栈、供应商原始报文**。
 
-### 6.1 会话与卡片
+### AR-06-1 会话与卡片
 
 | 方法 | 路径 | 请求 | 响应 |
 |---|---|---|---|
@@ -330,7 +330,7 @@ erDiagram
 | DELETE | `/api/cards/:id?scope=card\|records` | — | `{ ok }` |
 | POST | `/api/cards/:id/start` | — | `{ session }`（`unstarted → active`，写默认 `token_limit`） |
 
-### 6.2 对话与事件
+### AR-06-2 对话与事件
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
@@ -351,7 +351,7 @@ erDiagram
 
 `/api/admin/*` 仅接受本机直连（`Host` 校验 + 无 `Origin` 或同源），只服务托盘辅助进程，页面上不暴露入口。
 
-### 6.3 仅测试钩子（默认关闭）
+### AR-06-3 仅测试钩子（默认关闭）
 
 `config.runtime.test_hooks === true` 时才挂载，生产配置不写这两个字段：
 
@@ -360,7 +360,7 @@ erDiagram
 | POST | `/api/test/tick` | `{ session_id, trigger }` → `runTick` 返回 `Decision` |
 | POST | `/api/test/clock/advance` | `{ ms }` → 推进假时钟并跑到期任务 |
 
-### 6.4 SSE 帧格式
+### AR-06-4 SSE 帧格式
 
 ```
 event: user_ack
@@ -379,7 +379,7 @@ data: {"tokens":88,"estimated":false,"quota":{"used":1234,"limit":500000,"ratio"
 
 ---
 
-## 7. 四条主链（实现时按此顺序读代码）
+## AR-07 四条主链（实现时按此顺序读代码）
 
 **链 1：用户发消息**
 `http POST /messages` → `session.canGenerate` → `chat.send` → 落 `messages(user)` → `style.systemPrompt` + `chat.buildContext` → `llm.chatStream` → `style.postProcess` → 每气泡落库 + `bus.emit('message')` + SSE `bubble` → `quota.record('chat')` → `done` → 异步 `memory.extract`/`summarize`。
@@ -395,7 +395,7 @@ data: {"tokens":88,"estimated":false,"quota":{"used":1234,"limit":500000,"ratio"
 
 ---
 
-## 8. 硬红线 → 代码归属 → 验收
+## AR-08 硬红线 → 代码归属 → 验收
 
 这一节是"改代码前先看一眼"的表。任何让某行为失去归属的改动都算架构破坏。
 
@@ -415,7 +415,7 @@ data: {"tokens":88,"estimated":false,"quota":{"used":1234,"limit":500000,"ratio"
 
 ---
 
-## 9. 并发、竞态与故障语义
+## AR-09 并发、竞态与故障语义
 
 | 场景 | 处理 |
 |---|---|
@@ -435,7 +435,7 @@ data: {"tokens":88,"estimated":false,"quota":{"used":1234,"limit":500000,"ratio"
 
 ---
 
-## 10. 安全边界
+## AR-10 安全边界
 
 | 面 | 规则 | 落点 |
 |---|---|---|
@@ -450,7 +450,7 @@ data: {"tokens":88,"estimated":false,"quota":{"used":1234,"limit":500000,"ratio"
 
 ---
 
-## 11. 配置 schema（`data/config.json`）
+## AR-11 配置 schema（`data/config.json`）
 
 首次启动生成；缺字段用默认值补齐；不认识的字段忽略但不删除。
 
@@ -475,11 +475,11 @@ data: {"tokens":88,"estimated":false,"quota":{"used":1234,"limit":500000,"ratio"
 
 ---
 
-## 12. 建设顺序（M0–M6 → 模块 → 票）
+## AR-12 建设顺序（M0–M6 → 模块 → 票）
 
 | 阶段 | 架构落点 | 完成定义（可自动化断言） |
 |---|---|---|
-| M0 | `package.json`（scripts 按 AGENTS §3）、`src/index.js`、`store`（12 表 + 迁移）、`clock`、`runtime`（配置/日志/锁/bus）、`http`（`/health` + 静态送出）、`web/index.html` 占位页、`tools/{check,smoke,db-reset}.js` | 进程起得来、库建得对、`/health` 200、`npm run check` 无输出、`npm run smoke` 绿、`node --test` 有 1 条绿 |
+| M0 | `package.json`（scripts 按 AGENTS A-04）、`src/index.js`、`store`（12 表 + 迁移）、`clock`、`runtime`（配置/日志/锁/bus）、`http`（`/health` + 静态送出）、`web/index.html` 占位页、`tools/{check,smoke,db-reset}.js` | 进程起得来、库建得对、`/health` 200、`npm run check` 无输出、`npm run smoke` 绿、`node --test` 有 1 条绿 |
 | M1 | `cards`、`library`、`http/routes/cards` | T10、T13 绿 |
 | M2 | `chat`、`style`、`llm`、SSE | T1、T2 绿，20 轮不断线 |
 | M3 | `memory` | 事实可抽、摘要可查、翻旧账命中 |
@@ -492,18 +492,18 @@ data: {"tokens":88,"estimated":false,"quota":{"used":1234,"limit":500000,"ratio"
 
 ---
 
-## 13. 明确不在架构里出现的东西
+## AR-13 明确不在架构里出现的东西
 
 向量库、多供应商路由、Electron/打包安装器、TypeScript 构建链、前端框架与打包器、推送通道（Web Push/Telegram）、正则或 STscript 执行、世界书注入、多用户/账号/计费、移动端外壳、非 Windows 的托盘与自启。理由见 spec "Out of Scope" 与 ADR-0002/0006；要加先改 ADR，再改本文。
 
 ---
 
-## 14. 架构自检（写代码前后各过一遍）
+## AR-14 架构自检（写代码前后各过一遍）
 
-1. 新文件放对目录了吗（表 3.2 的"不许放什么"）？
-2. 新增依赖方向有反向边吗（§4.1）？
-3. 碰时间了吗（只用 `clock`）？
-4. 碰 SQL 了吗（只经 repo）？
-5. 影响硬红线了吗（§8 表）？
-6. 对外契约变了吗（§6 表；变了就要同步 `web/` 与 `test/s1`）？
-7. 需要人拍板吗（`Rule.md` 的清单）？
+1. **AR-14-01** 新文件放对目录了吗（AR-03 那张表的"不许放什么"）？
+2. **AR-14-02** 新增依赖方向有反向边吗（AR-04-1）？
+3. **AR-14-03** 碰时间了吗（只用 `clock`）？
+4. **AR-14-04** 碰 SQL 了吗（只经 repo）？
+5. **AR-14-05** 影响硬红线了吗（AR-08 表）？
+6. **AR-14-06** 对外契约变了吗（AR-06 表；变了就要同步 `web/` 与 `test/s1`）？
+7. **AR-14-07** 需要人拍板吗（`Rule.md` 的清单）？
