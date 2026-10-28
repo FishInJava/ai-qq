@@ -301,3 +301,42 @@ test('feeds：单类失败不拖垮其他类别', async () => {
     fixture.close();
   }
 });
+
+test('同一天并发生成时，后来的请求等这一次生成完，不返回空', async () => {
+  const fixture = makeStore();
+  try {
+    const { store, clock } = fixture;
+    const sessionId = fixture.addSession();
+    let release;
+    const blocked = new Promise((resolve) => {
+      release = resolve;
+    });
+    const living = createLiving({
+      store,
+      clock,
+      llm: {
+        async json({ system }) {
+          await blocked;
+          return {
+            value: system.includes('一致性')
+              ? { conflicts: [] }
+              : { events: ['今天把窗台擦了。', '楼下新开了一家面馆。'] },
+          };
+        },
+      },
+      feeds: { ensureDay: async () => [] },
+      log: silentLog(),
+    });
+
+    const first = living.ensureToday(sessionId);
+    const second = living.ensureToday(sessionId);
+    release();
+    const [a, b] = await Promise.all([first, second]);
+
+    assert.equal(a.length, 2);
+    assert.equal(b.length, 2);
+    assert.equal(store.lifeEvents.listForDay(sessionId, clock.localDay()).length, 2);
+  } finally {
+    fixture.close();
+  }
+});
