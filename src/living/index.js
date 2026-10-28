@@ -101,7 +101,7 @@ function normalizeEvents(raw) {
 }
 
 export function createLiving({ store, clock, llm, feeds, log }) {
-  const generating = new Set();
+  const generating = new Map();
 
   async function generateEvents(persona, feedRows, avoid = []) {
     const user = [
@@ -182,47 +182,57 @@ export function createLiving({ store, clock, llm, feeds, log }) {
     const id = requireSessionId(store, sessionId);
     const day = clock.localDay();
     const existing = store.lifeEvents.listForDay(id, day);
-    if (existing.length > 0 || generating.has(id)) {
+    if (existing.length > 0) {
       return existing;
     }
+    const pending = generating.get(id);
+    if (pending) {
+      return pending;
+    }
 
-    generating.add(id);
-    try {
-      const session = store.sessions.findById(id);
-      if (!session || session.state === 'unstarted' || session.character_id === null) {
-        return existing;
-      }
-      const card = store.characters.findById(session.character_id);
-      if (!card) {
-        return existing;
-      }
+    const task = (async () => {
+      try {
+        const session = store.sessions.findById(id);
+        if (!session || session.state === 'unstarted' || session.character_id === null) {
+          return existing;
+        }
+        const card = store.characters.findById(session.character_id);
+        if (!card) {
+          return existing;
+        }
 
-      const character = { ...parseCardText(card.card_json), id: card.id };
-      const events = await compose(character, store.worldFeeds.listForDay(day));
-      if (events.length === 0) {
-        return existing;
-      }
+        const character = { ...parseCardText(card.card_json), id: card.id };
+        const events = await compose(character, store.worldFeeds.listForDay(day));
+        if (events.length === 0) {
+          return existing;
+        }
 
-      const createdAt = clock.iso();
-      store.tx(() => {
-        events.forEach((content, index) => {
-          store.lifeEvents.insert({
-            sessionId: id,
-            eventDate: day,
-            ordinal: index + 1,
-            content,
-            createdAt,
+        const createdAt = clock.iso();
+        store.tx(() => {
+          events.forEach((content, index) => {
+            store.lifeEvents.insert({
+              sessionId: id,
+              eventDate: day,
+              ordinal: index + 1,
+              content,
+              createdAt,
+            });
           });
         });
-      });
-      return store.lifeEvents.listForDay(id, day);
-    } catch (err) {
-      log?.warn('living_events_failed', {
-        session_id: id,
-        code: err?.code ?? 'unknown',
-        message: err?.message ?? String(err),
-      });
-      return store.lifeEvents.listForDay(id, clock.localDay());
+        return store.lifeEvents.listForDay(id, day);
+      } catch (err) {
+        log?.warn('living_events_failed', {
+          session_id: id,
+          code: err?.code ?? 'unknown',
+          message: err?.message ?? String(err),
+        });
+        return store.lifeEvents.listForDay(id, clock.localDay());
+      }
+    })();
+
+    generating.set(id, task);
+    try {
+      return await task;
     } finally {
       generating.delete(id);
     }
